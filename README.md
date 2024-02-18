@@ -25,7 +25,7 @@ To place an order, send the /start command to the bot and follow the instruction
 
 - Order description
 - Payment type
-= Deadline
+- Deadline
 - Confirmation of payment (picture only)
 The bot will then send you a confirmation message with the order details and pin it to the chat. You can view the pinned message at any time by tapping on the pin icon at the top of the chat.
 
