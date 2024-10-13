@@ -35,11 +35,8 @@ def ask_question(message, question_index, message_ids):
             message_ids.append(msg.message_id)
             bot.register_next_step_handler(msg, handle_answer, message_ids, question_index)
     else:
-        # Join the questions and answers into a single text
-        answer_text = "\n".join(f"{q} {a}" for q, a in zip(questions, answers))
-        # Delete the entire conversation starting at '/start'
-        for msg_id in message_ids:
-            bot.delete_message(message.chat.id, msg_id)
+        # This case should not be hit since we will handle the photo next
+        pass
 
 def handle_answer(message, message_ids, question_index):
     answers.append(message.text)  # Save the user's answer
@@ -58,15 +55,17 @@ def handle_drink_selection(call):
     # Continue to the next question after selecting the drink
     ask_question(call.message, 3, message_ids)  # Continue to the next question (payment type)
 
-def handle_picture(message, message_ids):
+@bot.message_handler(content_types=['photo'])
+def handle_picture(message):
     global last_pinned_message
+    # After the user uploads the payment confirmation picture
     if message.content_type == 'photo':
         # Join the questions and answers into a single text
         caption_text = "\n".join(f"{q} {a}" for q, a in zip(questions, answers))
         # Get the photo id
         photo_id = message.photo[-1].file_id
-        # Send the photo back to the user with the caption
-        msg = bot.send_photo(message.chat.id, photo_id, caption=caption_text)
+        # Send the photo back to the user with the caption (Order Summary)
+        msg = bot.send_photo(message.chat.id, photo_id, caption=f"Order Summary:\n{caption_text}")
         
         # Send the same photo and caption to the admin (your chat)
         bot.send_photo(ADMIN_CHAT_ID, photo_id, caption=f"New Order Received:\n{caption_text}")
@@ -77,10 +76,6 @@ def handle_picture(message, message_ids):
         
         # Delete the original picture sent by the user
         bot.delete_message(message.chat.id, message.message_id)
-        
-    # Delete the entire conversation starting at '/start'
-    for msg_id in message_ids:
-        bot.delete_message(message.chat.id, msg_id)
 
 @bot.message_handler(commands=['cancel'])
 def cancel(message):
