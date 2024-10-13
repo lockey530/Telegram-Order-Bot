@@ -5,11 +5,11 @@ import time
 bot = telebot.TeleBot(config.TOKEN)
 
 # Admin chat ID (your user ID)
-ADMIN_CHAT_ID = 551429608  # Replace with your actual Telegram user ID
+ADMIN_CHAT_ID = 551429608  # Your actual Telegram user ID
 
 # New menu of drink options
 menu = ["Iced Matcha Latte", "Iced Houjicha Latte", "Iced Chocolate"]
-questions = ["Please choose your drink:", "Payment type (e.g., PayNow, Cash):", "Confirmation of Payment (Picture Only):"]
+questions = ["Please enter your name:", "Please enter your Telegram handle:", "Please choose your drink:", "Payment type (e.g., PayNow, Cash):", "Confirmation of Payment (Picture Only):"]
 answers = []
 last_pinned_message = None
 
@@ -18,32 +18,13 @@ def welcome(message):
     global last_pinned_message
     last_pinned_message = None  # reset the last pinned message
     answers.clear()  # clear the previous saved messages
-    show_menu(message, 0, [message.message_id])  # start by showing the menu
-
-def show_menu(message, question_index, message_ids):
-    menu_text = "Please select a drink:\n" + "\n".join(f"{i+1}. {drink}" for i, drink in enumerate(menu))
-    msg = bot.send_message(message.chat.id, menu_text)
-    message_ids.append(msg.message_id)  # save the bot's message id
-    bot.register_next_step_handler(msg, handle_menu_selection, message_ids, question_index)
-
-def handle_menu_selection(message, message_ids, question_index):
-    try:
-        choice = int(message.text) - 1
-        if choice < 0 or choice >= len(menu):
-            raise ValueError  # invalid input, will be handled below
-        answers.append(menu[choice])  # save the selected drink
-        message_ids.append(message.message_id)  # save the user's message id
-        ask_question(message, question_index + 1, message_ids)
-    except (ValueError, IndexError):
-        msg = bot.send_message(message.chat.id, "Invalid choice. Please select a valid drink option (1, 2, or 3).")
-        message_ids.append(msg.message_id)  # save the invalid input message
-        bot.register_next_step_handler(msg, handle_menu_selection, message_ids, question_index)
+    ask_question(message, 0, [message.message_id])  # start by asking the user's name
 
 def ask_question(message, question_index, message_ids):
     if question_index < len(questions):
         msg = bot.send_message(message.chat.id, questions[question_index])
         message_ids.append(msg.message_id)  # save the bot's message id
-        if question_index == len(questions) - 1:  # if it's the last question
+        if question_index == len(questions) - 1:  # if it's the last question (for photo)
             bot.register_next_step_handler(msg, handle_picture, message_ids)
         else:
             bot.register_next_step_handler(msg, handle_answer, message_ids, question_index)
@@ -70,10 +51,10 @@ def handle_picture(message, message_ids):
         # send the photo back to the user with the caption
         msg = bot.send_photo(message.chat.id, photo_id, caption=caption_text)
         
-        # send the same photo and caption to the admin (yourself)
+        # **Send the same photo and caption to the admin (your chat)**
         bot.send_photo(ADMIN_CHAT_ID, photo_id, caption=f"New Order Received:\n{caption_text}")
         
-        # pin the message in the chat with the user
+        # Pin the message in the user's chat
         bot.pin_chat_message(message.chat.id, msg.message_id)
         last_pinned_message = msg.message_id  # update the last pinned message
         
