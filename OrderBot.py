@@ -4,6 +4,9 @@ import time
 
 bot = telebot.TeleBot(config.TOKEN)
 
+# Admin chat ID (your user ID)
+ADMIN_CHAT_ID = 551429608  # Replace with your actual Telegram user ID
+
 # New menu of drink options
 menu = ["Iced Matcha Latte", "Iced Houjicha Latte", "Iced Chocolate"]
 questions = ["Please choose your drink:", "Payment type (e.g., PayNow, Cash):", "Confirmation of Payment (Picture Only):"]
@@ -64,13 +67,19 @@ def handle_picture(message, message_ids):
         caption_text = "\n".join(f"{q} {a}" for q, a in zip(questions, answers))
         # get the photo id
         photo_id = message.photo[-1].file_id
-        # send the photo again with the caption
+        # send the photo back to the user with the caption
         msg = bot.send_photo(message.chat.id, photo_id, caption=caption_text)
-        # pin the message
+        
+        # send the same photo and caption to the admin (yourself)
+        bot.send_photo(ADMIN_CHAT_ID, photo_id, caption=f"New Order Received:\n{caption_text}")
+        
+        # pin the message in the chat with the user
         bot.pin_chat_message(message.chat.id, msg.message_id)
         last_pinned_message = msg.message_id  # update the last pinned message
+        
         # delete the original picture sent by the user
         bot.delete_message(message.chat.id, message.message_id)
+        
     # delete the entire conversation starting at '/start'
     for msg_id in message_ids:
         bot.delete_message(message.chat.id, msg_id)
