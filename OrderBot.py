@@ -45,7 +45,7 @@ def show_menu(message, message_ids):
     msg = bot.send_message(message.chat.id, "Please select a drink:", reply_markup=markup)
     message_ids.append(msg.message_id)
 
-@bot.callback_query_handler(func=lambda call: True)
+@bot.callback_query_handler(func=lambda call: call.data in menu)
 def handle_menu_selection(call):
     selected_drink = call.data
     # Save the selected drink temporarily
