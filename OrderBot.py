@@ -22,7 +22,13 @@ def welcome(message):
     last_pinned_message = None  # reset the last pinned message
     answers.clear()  # clear the previous saved messages
     drink_orders.clear()  # clear previous drink orders
-    ask_question(message, 0, [message.message_id])  # start by asking the user's name
+    
+    # Send the welcome message with drink prices
+    welcome_text = ("Hello! Welcome to the Battambar Order Bot. We are selling Iced Matcha, Iced Chocolate, Iced Houjicha Latte. "
+                    "Each cup is 4 dollars, and there is 1 dollar off for every 3 drinks.\n\nPlease enter your name to begin ordering:")
+    msg = bot.send_message(message.chat.id, welcome_text)
+    
+    ask_question(message, 0, [msg.message_id])  # Ask for the user's name
 
 def ask_question(message, question_index, message_ids):
     if question_index < len(questions):
