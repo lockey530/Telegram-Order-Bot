@@ -93,7 +93,7 @@ def handle_more_drinks(call):
         show_menu(call.message, [call.message.message_id])
     else:
         # Proceed to payment if no more drinks are needed
-        msg = bot.send_message(chat_id, "Please PayNow and upload the payment confirmation photo.")
+        msg = bot.send_message(chat_id, "Please PayNow Reiyean +6592331010 and upload the payment confirmation photo.")
         bot.register_next_step_handler(msg, handle_payment_confirmation, [call.message.message_id])
 
 def handle_payment_confirmation(message, message_ids):
