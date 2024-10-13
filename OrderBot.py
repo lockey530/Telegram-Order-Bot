@@ -1,12 +1,12 @@
-# Author: Tinkering-Around
-
 import telebot
 import config
 import time
 
 bot = telebot.TeleBot(config.TOKEN)
 
-questions = ["Order Description:", "Payment type:", "Deadline:", "Confirmation of Payment(Picture Only):"]
+# New menu of drink options
+menu = ["Iced Matcha Latte", "Iced Houjicha Latte", "Iced Chocolate"]
+questions = ["Please choose your drink:", "Payment type (e.g., PayNow, Cash):", "Confirmation of Payment (Picture Only):"]
 answers = []
 last_pinned_message = None
 
@@ -15,7 +15,26 @@ def welcome(message):
     global last_pinned_message
     last_pinned_message = None  # reset the last pinned message
     answers.clear()  # clear the previous saved messages
-    ask_question(message, 0, [message.message_id])  # pass the '/start' message id
+    show_menu(message, 0, [message.message_id])  # start by showing the menu
+
+def show_menu(message, question_index, message_ids):
+    menu_text = "Please select a drink:\n" + "\n".join(f"{i+1}. {drink}" for i, drink in enumerate(menu))
+    msg = bot.send_message(message.chat.id, menu_text)
+    message_ids.append(msg.message_id)  # save the bot's message id
+    bot.register_next_step_handler(msg, handle_menu_selection, message_ids, question_index)
+
+def handle_menu_selection(message, message_ids, question_index):
+    try:
+        choice = int(message.text) - 1
+        if choice < 0 or choice >= len(menu):
+            raise ValueError  # invalid input, will be handled below
+        answers.append(menu[choice])  # save the selected drink
+        message_ids.append(message.message_id)  # save the user's message id
+        ask_question(message, question_index + 1, message_ids)
+    except (ValueError, IndexError):
+        msg = bot.send_message(message.chat.id, "Invalid choice. Please select a valid drink option (1, 2, or 3).")
+        message_ids.append(msg.message_id)  # save the invalid input message
+        bot.register_next_step_handler(msg, handle_menu_selection, message_ids, question_index)
 
 def ask_question(message, question_index, message_ids):
     if question_index < len(questions):
