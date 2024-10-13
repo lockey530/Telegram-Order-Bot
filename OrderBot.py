@@ -14,6 +14,7 @@ questions = ["Please enter your name:", "Please enter your Telegram handle:"]
 answers = []
 drink_orders = []
 last_pinned_message = None
+order_to_user_map = {}  # To map the admin button press to the user who made the order
 
 @bot.message_handler(commands=['start'])
 def welcome(message):
@@ -105,8 +106,14 @@ def handle_picture(message, message_ids):
         # Send the photo back to the user with the caption (Order Summary)
         msg = bot.send_photo(message.chat.id, photo_id, caption=f"Order Summary:\n{caption_text}")
         
-        # Send the same photo and caption to the admin (your chat)
-        bot.send_photo(ADMIN_CHAT_ID, photo_id, caption=f"New Order Received:\n{caption_text}")
+        # Send the same photo and caption to the admin (your chat) with a "Mark as Ready" button
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("Mark as Ready", callback_data=f"order_ready_{message.chat.id}"))  # Store the user's chat ID in the callback
+        
+        admin_msg = bot.send_photo(ADMIN_CHAT_ID, photo_id, caption=f"New Order Received:\n{caption_text}", reply_markup=markup)
+
+        # Map the admin's "Mark as Ready" button to the user's chat ID
+        order_to_user_map[admin_msg.message_id] = message.chat.id
         
         # Pin the message in the user's chat
         bot.pin_chat_message(message.chat.id, msg.message_id)
@@ -118,6 +125,17 @@ def handle_picture(message, message_ids):
     # Delete the entire conversation starting at '/start'
     for msg_id in message_ids:
         bot.delete_message(message.chat.id, msg_id)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("order_ready_"))
+def mark_order_as_ready(call):
+    # Extract the user chat ID from the callback data
+    user_chat_id = int(call.data.split("_")[-1])
+    
+    # Send a message to the user that their order is ready
+    bot.send_message(user_chat_id, "Your order is ready for collection!")
+    
+    # Notify the admin that the user has been informed
+    bot.send_message(call.message.chat.id, "The user has been informed that their order is ready.")
 
 @bot.message_handler(commands=['cancel'])
 def cancel(message):
