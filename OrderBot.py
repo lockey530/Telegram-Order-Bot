@@ -17,7 +17,7 @@ user_data = {}
 @bot.message_handler(commands=['start'])
 def welcome(message):
     chat_id = message.chat.id
-    user_data[chat_id] = {"answers": [], "drink_orders": []}  # Initialize user-specific data
+    user_data[chat_id] = {"answers": [], "drink_orders": [], "username": message.from_user.username}  # Initialize user-specific data
     
     welcome_text = ("Hello! Welcome to the Battambar Order Bot. We are selling Iced Matcha, Iced Chocolate, Iced Houjicha Latte. "
                     "Each cup is 4 dollars, and there is 1 dollar off for every 3 drinks.")
@@ -140,10 +140,13 @@ def handle_picture(message, message_ids):
 @bot.callback_query_handler(func=lambda call: call.data.startswith("order_ready_"))
 def mark_order_as_ready(call):
     user_chat_id = int(call.data.split("_")[-1])
+    username = user_data[user_chat_id]["username"]
+    
     # Send a message to the user that their order is ready
     bot.send_message(user_chat_id, "Your order is ready for collection!")
-    # Notify the admin that the user has been informed
-    bot.send_message(call.message.chat.id, "The user has been informed that their order is ready.")
+    
+    # Notify the admin with the username of the user who placed the order
+    bot.send_message(call.message.chat.id, f"The user @{username} has been informed that their order is ready.")
 
 @bot.message_handler(commands=['cancel'])
 def cancel(message):
