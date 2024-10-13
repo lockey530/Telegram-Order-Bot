@@ -25,7 +25,7 @@ def welcome(message):
     
     # Send the welcome message with drink prices
     welcome_text = ("Hello! Welcome to the Battambar Order Bot. We are selling Iced Matcha, Iced Chocolate, Iced Houjicha Latte. "
-                    "Each cup is 4 dollars, and there is 1 dollar off for every 3 drinks.\n\nPlease enter your name to begin ordering:")
+                    "Each cup is 4 dollars, and there is 1 dollar off for every 3 drinks.")
     msg = bot.send_message(message.chat.id, welcome_text)
     
     ask_question(message, 0, [msg.message_id])  # Ask for the user's name
