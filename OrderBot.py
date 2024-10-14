@@ -22,7 +22,7 @@ def welcome(message):
     welcome_text = ("Hello! Welcome to the Battambar Order Bot. We are selling Iced Matcha, Iced Chocolate, Iced Houjicha Latte. "
                     "Each cup is 4 dollars, and there is 1 dollar off for every 3 drinks.")
     
-    msg = bot.send_message(chat_id, welcome_text)
+    msg = bot.send_message(chat_id, welcome_text + "\n\nPlease enter your name to begin ordering:")
     user_data[chat_id]["message_ids"].append(msg.message_id)
     ask_question(message, 0)
 
@@ -31,7 +31,12 @@ def ask_question(message, question_index):
     questions = ["Please enter your name:", "Please enter your Telegram handle:"]
     
     if question_index < len(questions):
-        msg = bot.send_message(chat_id, questions[question_index])
+        # Add a "Back" button for users to return to the previous step
+        markup = types.InlineKeyboardMarkup()
+        if question_index > 0:  # Add a back button only after the first question
+            markup.add(types.InlineKeyboardButton("Back", callback_data=f"back_{question_index}"))
+        
+        msg = bot.send_message(chat_id, questions[question_index], reply_markup=markup)
         user_data[chat_id]["message_ids"].append(msg.message_id)
         bot.register_next_step_handler(msg, handle_answer, question_index)
     elif question_index == len(questions):  # Once name and handle are collected, show the drink menu with inline buttons
@@ -52,6 +57,19 @@ def show_menu(message):
     
     msg = bot.send_message(chat_id, "Please select a drink:", reply_markup=markup)
     user_data[chat_id]["message_ids"].append(msg.message_id)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("back_"))
+def handle_back(call):
+    chat_id = call.message.chat.id
+    question_index = int(call.data.split("_")[-1])  # Get the previous question index
+    user_data[chat_id]["answers"].pop()  # Remove the last answer
+    
+    # Delete the last message (Back button message)
+    for msg_id in user_data[chat_id]["message_ids"]:
+        bot.delete_message(chat_id, msg_id)
+    
+    # Go back to the previous step
+    ask_question(call.message, question_index - 1)
 
 @bot.callback_query_handler(func=lambda call: call.data in menu)
 def handle_menu_selection(call):
