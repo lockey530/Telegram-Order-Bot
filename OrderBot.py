@@ -171,6 +171,11 @@ def mark_order_as_ready(call):
     
     # Notify the admin with the username of the user who placed the order
     bot.send_message(call.message.chat.id, f"The user @{username} has been informed that their order is ready.")
+    
+    # Clear user data after order is complete
+    if user_chat_id in user_data:
+        del user_data[user_chat_id]
+
 
 @bot.message_handler(commands=['cancel'])
 def cancel(message):
@@ -180,4 +185,6 @@ def cancel(message):
     # Pin the message
     bot.pin_chat_message(chat_id, msg.message_id)
 
-bot.polling(none_stop=True)
+# Enable multithreading for handling multiple users simultaneously
+bot.polling(none_stop=True, threaded=True)
+
