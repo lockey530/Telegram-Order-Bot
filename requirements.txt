@@ -1,1 +1,1 @@
-pyTelegramBotAPI
+pyTelegramBotAPI[asyncio]==4.12.0
