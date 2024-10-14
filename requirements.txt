@@ -1,1 +1,1 @@
-bot = telebot.TeleBot(config.TOKEN)
+pyTelegramBotAPI[asyncio]==4.12.0
