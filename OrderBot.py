@@ -8,7 +8,7 @@ bot = telebot.TeleBot(config.TOKEN)
 # Admin chat ID (your user ID)
 ADMIN_CHAT_ID = 551429608  # Your actual Telegram user ID
 
-# New menu of drink options (including the Surprise Drink)
+# New menu of drink options
 menu = ["Iced Matcha Latte", "Iced Houjicha Latte", "Iced Chocolate", "Surprise Drink"]
 
 # Store each user's order and state
@@ -17,7 +17,7 @@ user_data = {}
 @bot.message_handler(commands=['start'])
 def welcome(message):
     chat_id = message.chat.id
-    user_data[chat_id] = {"answers": [], "drink_orders": [], "message_ids": [], "username": message.from_user.username}  # Initialize user-specific data
+    user_data[chat_id] = {"answers": [], "drink_orders": [], "message_ids": [], "username": message.from_user.username, "state": "START"}  # Initialize user-specific data
     
     welcome_text = ("Hello! Welcome to the Battambar Order Bot. We are selling Iced Matcha, Iced Chocolate, Iced Houjicha Latte, and a Surprise Drink. "
                     "Each cup is 4 dollars, and there is 1 dollar off for every 3 drinks. Our surprise drink is 5 dollars ;)")
@@ -45,6 +45,7 @@ def handle_answer(message, question_index):
 
 def show_menu(message):
     chat_id = message.chat.id
+    user_data[chat_id]["state"] = "CHOOSING_DRINK"  # Set the state to prevent multiple taps
     # Create inline buttons for drink options (including Surprise Drink)
     markup = types.InlineKeyboardMarkup()
     for drink in menu:
@@ -56,14 +57,21 @@ def show_menu(message):
 @bot.callback_query_handler(func=lambda call: call.data in menu)
 def handle_menu_selection(call):
     chat_id = call.message.chat.id
-    selected_drink = call.data
-    # Save the selected drink
-    user_data[chat_id]["answers"].append(selected_drink)
-    
-    # Ask for the quantity of the selected drink
-    msg = bot.send_message(chat_id, f"How many {selected_drink} would you like?")
-    user_data[chat_id]["message_ids"].append(msg.message_id)
-    bot.register_next_step_handler(msg, handle_quantity_selection, selected_drink)
+    if user_data[chat_id]["state"] == "CHOOSING_DRINK":
+        selected_drink = call.data
+        # Save the selected drink
+        user_data[chat_id]["answers"].append(selected_drink)
+        
+        # Disable the inline buttons after a selection
+        bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=None)
+        
+        # Ask for the quantity of the selected drink
+        msg = bot.send_message(chat_id, f"How many {selected_drink} would you like?")
+        user_data[chat_id]["message_ids"].append(msg.message_id)
+        user_data[chat_id]["state"] = "CHOOSING_QUANTITY"
+        bot.register_next_step_handler(msg, handle_quantity_selection, selected_drink)
+    else:
+        bot.send_message(chat_id, "You have already selected a drink. Please proceed.")
 
 def handle_quantity_selection(message, selected_drink):
     chat_id = message.chat.id
@@ -82,6 +90,7 @@ def handle_quantity_selection(message, selected_drink):
 
         msg = bot.send_message(chat_id, "Would you like to order more drinks?", reply_markup=markup)
         user_data[chat_id]["message_ids"].append(msg.message_id)
+        user_data[chat_id]["state"] = "MORE_DRINKS"
 
     except ValueError:
         msg = bot.send_message(chat_id, "Invalid input. Please enter a valid number for the quantity.")
@@ -91,14 +100,18 @@ def handle_quantity_selection(message, selected_drink):
 @bot.callback_query_handler(func=lambda call: call.data in ["yes_more_drinks", "no_more_drinks"])
 def handle_more_drinks(call):
     chat_id = call.message.chat.id
-    if call.data == "yes_more_drinks":
-        # Go back to the drink selection to allow more orders
-        show_menu(call.message)
+    if user_data[chat_id]["state"] == "MORE_DRINKS":
+        if call.data == "yes_more_drinks":
+            # Go back to the drink selection to allow more orders
+            show_menu(call.message)
+        else:
+            # Proceed to payment if no more drinks are needed
+            msg = bot.send_message(chat_id, "Please PayNow Reiyean +6592331010 and upload the payment confirmation photo.")
+            user_data[chat_id]["message_ids"].append(msg.message_id)
+            bot.register_next_step_handler(msg, handle_payment_confirmation)
+            user_data[chat_id]["state"] = "AWAITING_PAYMENT"
     else:
-        # Proceed to payment if no more drinks are needed
-        msg = bot.send_message(chat_id, "Please PayNow Reiyean +6592331010 and upload the payment confirmation photo.")
-        user_data[chat_id]["message_ids"].append(msg.message_id)
-        bot.register_next_step_handler(msg, handle_payment_confirmation)
+        bot.send_message(chat_id, "You've already made a choice. Please continue with the payment.")
 
 def handle_payment_confirmation(message):
     chat_id = message.chat.id
@@ -127,13 +140,19 @@ def handle_picture(message):
         
         # Delete all previous messages except the order summary
         for msg_id in user_data[chat_id]["message_ids"]:
-            bot.delete_message(chat_id, msg_id)
+            try:
+                bot.delete_message(chat_id, msg_id)
+            except:
+                pass  # Ignore if the message has already been deleted
         
         # Send the same photo and caption to the admin (your chat) with a "Mark as Ready" button
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("Mark as Ready", callback_data=f"order_ready_{chat_id}"))  # Store the user's chat ID in the callback
         
-        admin_msg = bot.send_photo(ADMIN_CHAT_ID, photo_id, caption=f"New Order Received:\n{caption_text}", reply_markup=markup)
+        try:
+            admin_msg = bot.send_photo(ADMIN_CHAT_ID, photo_id, caption=f"New Order Received:\n{caption_text}", reply_markup=markup)
+        except Exception as e:
+            bot.send_message(ADMIN_CHAT_ID, f"Error sending order: {e}")
 
         # Pin the message in the user's chat
         bot.pin_chat_message(chat_id, msg.message_id)
