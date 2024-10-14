@@ -185,6 +185,5 @@ def cancel(message):
     # Pin the message
     bot.pin_chat_message(chat_id, msg.message_id)
 
-# Enable multithreading for handling multiple users simultaneously
-bot.polling(none_stop=True, threaded=True)
+bot.polling(none_stop=True)
 
