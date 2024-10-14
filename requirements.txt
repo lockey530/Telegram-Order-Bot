@@ -1,1 +1,1 @@
-pyTelegramBotAPI[asyncio]==4.12.0
+bot = telebot.TeleBot(config.TOKEN)
