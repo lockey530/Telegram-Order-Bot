@@ -20,7 +20,7 @@ def welcome(message):
     user_data[chat_id] = {"answers": [], "drink_orders": [], "message_ids": [], "username": message.from_user.username}  # Initialize user-specific data
     
     welcome_text = ("Hello! Welcome to the Battambar Order Bot. We are selling Iced Matcha, Iced Chocolate, Iced Houjicha Latte, and Surprise Drink. "
-                    "Each cup is 4 dollars, and there is 1 dollar off for every 3 drinks.")
+                    "Each cup is 4 dollars, and there is 1 dollar off for every 3 drinks. Our surprise drink is 5 dollars ;)")
     
     msg = bot.send_message(chat_id, welcome_text)
     user_data[chat_id]["message_ids"].append(msg.message_id)
