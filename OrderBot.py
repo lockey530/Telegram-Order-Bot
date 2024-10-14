@@ -1,7 +1,3 @@
-
-
-can you check the code, im not sure why its not sending orders to me
-
 import telebot
 import config
 import time
