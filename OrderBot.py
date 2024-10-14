@@ -22,7 +22,7 @@ def welcome(message):
     welcome_text = ("Hello! Welcome to the Battambar Order Bot. We are selling Iced Matcha, Iced Chocolate, Iced Houjicha Latte. "
                     "Each cup is 4 dollars, and there is 1 dollar off for every 3 drinks.")
     
-    msg = bot.send_message(chat_id, welcome_text + "\n\nPlease enter your name to begin ordering:")
+    msg = bot.send_message(chat_id, welcome_text)
     user_data[chat_id]["message_ids"].append(msg.message_id)
     ask_question(message, 0)
 
