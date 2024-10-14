@@ -1,10 +1,11 @@
+
+
 import telebot
 import config
-import asyncio
+import time
 from telebot import types
 
-# Use AsyncTeleBot instead of TeleBot
-bot = telebot.AsyncTeleBot(config.TOKEN)
+bot = telebot.TeleBot(config.TOKEN)
 
 # Admin chat ID (your user ID)
 ADMIN_CHAT_ID = 551429608  # Your actual Telegram user ID
@@ -16,35 +17,35 @@ menu = ["Iced Matcha Latte", "Iced Houjicha Latte", "Iced Chocolate", "Surprise 
 user_data = {}
 
 @bot.message_handler(commands=['start'])
-async def welcome(message):
+def welcome(message):
     chat_id = message.chat.id
     user_data[chat_id] = {"answers": [], "drink_orders": [], "message_ids": [], "username": message.from_user.username, "state": "START"}  # Initialize user-specific data
     
     welcome_text = ("Hello! Welcome to the Battambar Order Bot. We are selling Iced Matcha, Iced Chocolate, Iced Houjicha Latte, and a Surprise Drink. "
                     "Each cup is 4 dollars, and there is 1 dollar off for every 3 drinks. Our surprise drink is 5 dollars ;)")
     
-    msg = await bot.send_message(chat_id, welcome_text)
+    msg = bot.send_message(chat_id, welcome_text)
     user_data[chat_id]["message_ids"].append(msg.message_id)
-    await ask_question(message, 0)
+    ask_question(message, 0)
 
-async def ask_question(message, question_index):
+def ask_question(message, question_index):
     chat_id = message.chat.id
     questions = ["Please enter your name:", "Please enter your Telegram handle:"]
     
     if question_index < len(questions):
-        msg = await bot.send_message(chat_id, questions[question_index])
+        msg = bot.send_message(chat_id, questions[question_index])
         user_data[chat_id]["message_ids"].append(msg.message_id)
         bot.register_next_step_handler(msg, handle_answer, question_index)
     elif question_index == len(questions):  # Once name and handle are collected, show the drink menu with inline buttons
-        await show_menu(message)
+        show_menu(message)
 
-async def handle_answer(message, question_index):
+def handle_answer(message, question_index):
     chat_id = message.chat.id
     user_data[chat_id]["answers"].append(message.text)  # Save user's answer
     user_data[chat_id]["message_ids"].append(message.message_id)
-    await ask_question(message, question_index + 1)
+    ask_question(message, question_index + 1)
 
-async def show_menu(message):
+def show_menu(message):
     chat_id = message.chat.id
     user_data[chat_id]["state"] = "CHOOSING_DRINK"  # Set the state to prevent multiple taps
     # Create inline buttons for drink options (including Surprise Drink)
@@ -52,11 +53,11 @@ async def show_menu(message):
     for drink in menu:
         markup.add(types.InlineKeyboardButton(drink, callback_data=drink))
     
-    msg = await bot.send_message(chat_id, "Please select a drink:", reply_markup=markup)
+    msg = bot.send_message(chat_id, "Please select a drink:", reply_markup=markup)
     user_data[chat_id]["message_ids"].append(msg.message_id)
 
 @bot.callback_query_handler(func=lambda call: call.data in menu)
-async def handle_menu_selection(call):
+def handle_menu_selection(call):
     chat_id = call.message.chat.id
     if user_data[chat_id]["state"] == "CHOOSING_DRINK":
         selected_drink = call.data
@@ -64,17 +65,17 @@ async def handle_menu_selection(call):
         user_data[chat_id]["answers"].append(selected_drink)
         
         # Disable the inline buttons after a selection
-        await bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=None)
+        bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=None)
         
         # Ask for the quantity of the selected drink
-        msg = await bot.send_message(chat_id, f"How many {selected_drink} would you like?")
+        msg = bot.send_message(chat_id, f"How many {selected_drink} would you like?")
         user_data[chat_id]["message_ids"].append(msg.message_id)
         user_data[chat_id]["state"] = "CHOOSING_QUANTITY"
         bot.register_next_step_handler(msg, handle_quantity_selection, selected_drink)
     else:
-        await bot.send_message(chat_id, "You have already selected a drink. Please proceed.")
+        bot.send_message(chat_id, "You have already selected a drink. Please proceed.")
 
-async def handle_quantity_selection(message, selected_drink):
+def handle_quantity_selection(message, selected_drink):
     chat_id = message.chat.id
     try:
         quantity = int(message.text)
@@ -89,42 +90,42 @@ async def handle_quantity_selection(message, selected_drink):
         markup.add(types.InlineKeyboardButton("Yes", callback_data="yes_more_drinks"))
         markup.add(types.InlineKeyboardButton("No", callback_data="no_more_drinks"))
 
-        msg = await bot.send_message(chat_id, "Would you like to order more drinks?", reply_markup=markup)
+        msg = bot.send_message(chat_id, "Would you like to order more drinks?", reply_markup=markup)
         user_data[chat_id]["message_ids"].append(msg.message_id)
         user_data[chat_id]["state"] = "MORE_DRINKS"
 
     except ValueError:
-        msg = await bot.send_message(chat_id, "Invalid input. Please enter a valid number for the quantity.")
+        msg = bot.send_message(chat_id, "Invalid input. Please enter a valid number for the quantity.")
         user_data[chat_id]["message_ids"].append(msg.message_id)
         bot.register_next_step_handler(msg, handle_quantity_selection, selected_drink)
 
 @bot.callback_query_handler(func=lambda call: call.data in ["yes_more_drinks", "no_more_drinks"])
-async def handle_more_drinks(call):
+def handle_more_drinks(call):
     chat_id = call.message.chat.id
     if user_data[chat_id]["state"] == "MORE_DRINKS":
         if call.data == "yes_more_drinks":
             # Go back to the drink selection to allow more orders
-            await show_menu(call.message)
+            show_menu(call.message)
         else:
             # Proceed to payment if no more drinks are needed
-            msg = await bot.send_message(chat_id, "Please PayNow Reiyean +6592331010 and upload the payment confirmation photo.")
+            msg = bot.send_message(chat_id, "Please PayNow Reiyean +6592331010 and upload the payment confirmation photo.")
             user_data[chat_id]["message_ids"].append(msg.message_id)
             bot.register_next_step_handler(msg, handle_payment_confirmation)
             user_data[chat_id]["state"] = "AWAITING_PAYMENT"
     else:
-        await bot.send_message(chat_id, "You've already made a choice. Please continue with the payment.")
+        bot.send_message(chat_id, "You've already made a choice. Please continue with the payment.")
 
-async def handle_payment_confirmation(message):
+def handle_payment_confirmation(message):
     chat_id = message.chat.id
     if message.content_type == 'photo':  # If the user uploads a photo
         user_data[chat_id]["answers"].append("Payment confirmation received.")
-        await handle_picture(message)
+        handle_picture(message)
     else:
-        msg = await bot.send_message(chat_id, "Please upload a photo for payment confirmation.")
+        msg = bot.send_message(chat_id, "Please upload a photo for payment confirmation.")
         user_data[chat_id]["message_ids"].append(msg.message_id)
         bot.register_next_step_handler(msg, handle_payment_confirmation)
 
-async def handle_picture(message):
+def handle_picture(message):
     chat_id = message.chat.id
     global last_pinned_message
     if message.content_type == 'photo':
@@ -137,12 +138,12 @@ async def handle_picture(message):
         photo_id = message.photo[-1].file_id
         
         # Send the photo back to the user with the caption (Order Summary)
-        msg = await bot.send_photo(chat_id, photo_id, caption=f"Order Summary:\n{caption_text}")
+        msg = bot.send_photo(chat_id, photo_id, caption=f"Order Summary:\n{caption_text}")
         
         # Delete all previous messages except the order summary
         for msg_id in user_data[chat_id]["message_ids"]:
             try:
-                await bot.delete_message(chat_id, msg_id)
+                bot.delete_message(chat_id, msg_id)
             except:
                 pass  # Ignore if the message has already been deleted
         
@@ -151,35 +152,34 @@ async def handle_picture(message):
         markup.add(types.InlineKeyboardButton("Mark as Ready", callback_data=f"order_ready_{chat_id}"))  # Store the user's chat ID in the callback
         
         try:
-            await bot.send_photo(ADMIN_CHAT_ID, photo_id, caption=f"New Order Received:\n{caption_text}", reply_markup=markup)
+            admin_msg = bot.send_photo(ADMIN_CHAT_ID, photo_id, caption=f"New Order Received:\n{caption_text}", reply_markup=markup)
         except Exception as e:
-            await bot.send_message(ADMIN_CHAT_ID, f"Error sending order: {e}")
+            bot.send_message(ADMIN_CHAT_ID, f"Error sending order: {e}")
 
         # Pin the message in the user's chat
-        await bot.pin_chat_message(chat_id, msg.message_id)
+        bot.pin_chat_message(chat_id, msg.message_id)
         last_pinned_message = msg.message_id  # Update the last pinned message
         
         # Delete the original picture sent by the user
-        await bot.delete_message(chat_id, message.message_id)
+        bot.delete_message(chat_id, message.message_id)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("order_ready_"))
-async def mark_order_as_ready(call):
+def mark_order_as_ready(call):
     user_chat_id = int(call.data.split("_")[-1])
     username = user_data[user_chat_id]["username"]
     
     # Send a message to the user that their order is ready
-    await bot.send_message(user_chat_id, "Your order is ready for collection!")
+    bot.send_message(user_chat_id, "Your order is ready for collection!")
     
     # Notify the admin with the username of the user who placed the order
-    await bot.send_message(call.message.chat.id, f"The user @{username} has been informed that their order is ready.")
+    bot.send_message(call.message.chat.id, f"The user @{username} has been informed that their order is ready.")
 
 @bot.message_handler(commands=['cancel'])
-async def cancel(message):
+def cancel(message):
     chat_id = message.chat.id
     # Send a message that the order was cancelled
-    msg = await bot.send_message(chat_id, "The order was cancelled.")
+    msg = bot.send_message(chat_id, "The order was cancelled.")
     # Pin the message
-    await bot.pin_chat_message(chat_id, msg.message_id)
+    bot.pin_chat_message(chat_id, msg.message_id)
 
-# Start the bot with asyncio
-asyncio.run(bot.polling(non_stop=True))
+bot.polling(none_stop=True)
