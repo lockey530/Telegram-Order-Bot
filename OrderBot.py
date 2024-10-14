@@ -8,8 +8,8 @@ bot = telebot.TeleBot(config.TOKEN)
 # Admin chat ID (your user ID)
 ADMIN_CHAT_ID = 551429608  # Your actual Telegram user ID
 
-# New menu of drink options
-menu = ["Iced Matcha Latte", "Iced Houjicha Latte", "Iced Chocolate"]
+# New menu of drink options (including the Surprise Drink)
+menu = ["Iced Matcha Latte", "Iced Houjicha Latte", "Iced Chocolate", "Surprise Drink"]
 
 # Store each user's order and state
 user_data = {}
@@ -19,7 +19,7 @@ def welcome(message):
     chat_id = message.chat.id
     user_data[chat_id] = {"answers": [], "drink_orders": [], "message_ids": [], "username": message.from_user.username}  # Initialize user-specific data
     
-    welcome_text = ("Hello! Welcome to the Battambar Order Bot. We are selling Iced Matcha, Iced Chocolate, Iced Houjicha Latte. "
+    welcome_text = ("Hello! Welcome to the Battambar Order Bot. We are selling Iced Matcha, Iced Chocolate, Iced Houjicha Latte, and Surprise Drink. "
                     "Each cup is 4 dollars, and there is 1 dollar off for every 3 drinks.")
     
     msg = bot.send_message(chat_id, welcome_text)
@@ -45,7 +45,7 @@ def handle_answer(message, question_index):
 
 def show_menu(message):
     chat_id = message.chat.id
-    # Create inline buttons for drink options
+    # Create inline buttons for drink options (including Surprise Drink)
     markup = types.InlineKeyboardMarkup()
     for drink in menu:
         markup.add(types.InlineKeyboardButton(drink, callback_data=drink))
