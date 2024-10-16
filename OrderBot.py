@@ -30,7 +30,8 @@ def welcome(message):
     user_data[chat_id]["message_ids"].append(msg.message_id)
     
     # Then send the image menu
-    bot.send_photo(chat_id, MENU_IMAGE_FILE_ID)
+    menu_msg = bot.send_photo(chat_id, MENU_IMAGE_FILE_ID)
+    user_data[chat_id]["message_ids"].append(menu_msg.message_id)  # Track menu image message ID
 
     # After the menu is sent, ask for the name (first question)
     ask_question(message, 0)
@@ -147,7 +148,7 @@ def handle_picture(message):
         # Send the photo back to the user with the caption (Order Summary)
         msg = bot.send_photo(chat_id, photo_id, caption=f"Order Summary:\n{caption_text}")
         
-        # Delete all previous messages except the order summary
+        # Delete all previous messages including the menu image
         for msg_id in user_data[chat_id]["message_ids"]:
             try:
                 bot.delete_message(chat_id, msg_id)
@@ -179,18 +180,4 @@ def mark_order_as_ready(call):
     bot.send_message(user_chat_id, "Your order is ready for collection!")
     
     # Notify the admin with the username of the user who placed the order
-    bot.send_message(call.message.chat.id, f"The user @{username} has been informed that their order is ready.")
-
-    # Clear user data after order is complete
-    if user_chat_id in user_data:
-        del user_data[user_chat_id]  # This removes the user's data from memory
-
-@bot.message_handler(commands=['cancel'])
-def cancel(message):
-    chat_id = message.chat.id
-    # Send a message that the order was cancelled
-    msg = bot.send_message(chat_id, "The order was cancelled.")
-    # Pin the message
-    bot.pin_chat_message(chat_id, msg.message_id)
-
-bot.polling(none_stop=True)
+    bot.send_message(call.message.chat.id, f"The user @{username} has been informed that
