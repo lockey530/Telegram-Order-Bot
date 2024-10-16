@@ -14,12 +14,8 @@ menu = ["Iced Matcha Latte", "Iced Houjicha Latte", "Iced Chocolate", "Surprise 
 # Store each user's order and state
 user_data = {}
 
-@bot.message_handler(content_types=['photo'])
-def get_file_id(message):
-    # Get the file ID of the image uploaded
-    file_id = message.photo[-1].file_id
-    print(f"File ID: {file_id}")
-    bot.reply_to(message, f"Your file ID is {file_id}")
+# File ID for the menu image
+MENU_IMAGE_FILE_ID = 'AgACAgUAAxkBAAID3GcPGWk99TJab_qnKizpnIrVjrtZAAIFvzEbnQZ5VP7M3JiITBziAQADAgADeQADNgQ'
 
 @bot.message_handler(commands=['start'])
 def welcome(message):
@@ -29,8 +25,14 @@ def welcome(message):
     welcome_text = ("Hello! Welcome to the Battambar Order Bot. We are selling Iced Matcha, Iced Chocolate, Iced Houjicha Latte, and a Surprise Drink. "
                     "Each cup is 4 dollars, and there is 1 dollar off for every 3 drinks. Our surprise drink is 5 dollars ;)")
     
+    # Send the welcome text first
     msg = bot.send_message(chat_id, welcome_text)
     user_data[chat_id]["message_ids"].append(msg.message_id)
+    
+    # Then send the image menu
+    bot.send_photo(chat_id, MENU_IMAGE_FILE_ID)
+
+    # After the menu is sent, ask for the name (first question)
     ask_question(message, 0)
 
 def ask_question(message, question_index):
