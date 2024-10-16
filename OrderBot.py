@@ -14,6 +14,13 @@ menu = ["Iced Matcha Latte", "Iced Houjicha Latte", "Iced Chocolate", "Surprise 
 # Store each user's order and state
 user_data = {}
 
+@bot.message_handler(content_types=['photo'])
+def get_file_id(message):
+    # Get the file ID of the image uploaded
+    file_id = message.photo[-1].file_id
+    print(f"File ID: {file_id}")
+    bot.reply_to(message, f"Your file ID is {file_id}")
+
 @bot.message_handler(commands=['start'])
 def welcome(message):
     chat_id = message.chat.id
