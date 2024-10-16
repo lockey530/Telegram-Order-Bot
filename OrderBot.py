@@ -180,4 +180,18 @@ def mark_order_as_ready(call):
     bot.send_message(user_chat_id, "Your order is ready for collection!")
     
     # Notify the admin with the username of the user who placed the order
-    bot.send_message(call.message.chat.id, f"The user @{username} has been informed that
+    bot.send_message(call.message.chat.id, f"The user @{username} has been informed that their order is ready.")
+
+    # Clear user data after order is complete
+    if user_chat_id in user_data:
+        del user_data[user_chat_id]  # This removes the user's data from memory
+
+@bot.message_handler(commands=['cancel'])
+def cancel(message):
+    chat_id = message.chat.id
+    # Send a message that the order was cancelled
+    msg = bot.send_message(chat_id, "The order was cancelled.")
+    # Pin the message
+    bot.pin_chat_message(chat_id, msg.message_id)
+
+bot.polling(none_stop=True)
