@@ -1,0 +1,47 @@
+import os
+
+# Load the last queue number from file or initialize it
+def load_queue_number():
+    if os.path.exists('queue_counter.txt'):
+        with open('queue_counter.txt', 'r') as file:
+            return int(file.read())
+    else:
+        return 1  # Start from 1 if no file exists
+
+# Save the current queue number to the file
+def save_queue_number(queue_number):
+    with open('queue_counter.txt', 'w') as file:
+        file.write(str(queue_number))
+
+# Initialize the global queue number
+queue_number = load_queue_number()
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("order_ready_"))
+def mark_order_as_ready(call):
+    global queue_number
+
+    user_chat_id = int(call.data.split("_")[-1])
+    username = user_data[user_chat_id]["username"]
+
+    # Assign the current queue number to the order
+    order_queue_number = queue_number
+    queue_number += 1  # Increment the counter for the next order
+
+    # Save the new queue number to file
+    save_queue_number(queue_number)
+
+    # Send a message to the user that their order is ready
+    bot.send_message(
+        user_chat_id,
+        f"Your order is ready for collection! Your queue number is #{order_queue_number}."
+    )
+
+    # Notify the admin with the username and queue number
+    bot.send_message(
+        call.message.chat.id,
+        f"The user @{username} has been informed. Queue Number: #{order_queue_number}."
+    )
+
+    # Clear user data after order is complete
+    if user_chat_id in user_data:
+        del user_data[user_chat_id]
