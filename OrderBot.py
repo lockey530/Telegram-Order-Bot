@@ -46,13 +46,8 @@ queue_number = load_queue_number()
 @bot.message_handler(commands=['start'])
 def welcome(message):
     chat_id = message.chat.id
-    user_data[chat_id] = {
-        "answers": [],
-        "drink_orders": [],
-        "message_ids": [],
-        "username": message.from_user.username,
-        "state": "START"
-    }
+    user_data[chat_id] = {"answers": [], "drink_orders": [], "message_ids": [], 
+                          "username": message.from_user.username, "state": "START"}
 
     welcome_text = (
         "Hello! Welcome to the Battambar Order Bot. We are selling Iced Matcha, "
@@ -100,13 +95,18 @@ def show_menu(message):
 @bot.callback_query_handler(func=lambda call: call.data in menu)
 def handle_menu_selection(call):
     chat_id = call.message.chat.id
-    selected_drink = call.data
+    if user_data[chat_id]["state"] == "CHOOSING_DRINK":
+        selected_drink = call.data
+        user_data[chat_id]["answers"].append(selected_drink)
 
-    user_data[chat_id]["answers"].append(selected_drink)
+        bot.edit_message_reply_markup(chat_id=call.message.chat.id, 
+                                      message_id=call.message.message_id, 
+                                      reply_markup=None)
 
-    msg = bot.send_message(chat_id, f"How many {selected_drink} would you like?")
-    user_data[chat_id]["message_ids"].append(msg.message_id)
-    bot.register_next_step_handler(msg, handle_quantity_selection, selected_drink)
+        msg = bot.send_message(chat_id, f"How many {selected_drink} would you like?")
+        user_data[chat_id]["message_ids"].append(msg.message_id)
+        user_data[chat_id]["state"] = "CHOOSING_QUANTITY"
+        bot.register_next_step_handler(msg, handle_quantity_selection, selected_drink)
 
 def handle_quantity_selection(message, selected_drink):
     chat_id = message.chat.id
@@ -117,25 +117,37 @@ def handle_quantity_selection(message, selected_drink):
 
         user_data[chat_id]["drink_orders"].append(f"{quantity} x {selected_drink}")
 
-        # Ask for payment
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("Yes", callback_data="yes_more_drinks"))
+        markup.add(types.InlineKeyboardButton("No", callback_data="no_more_drinks"))
+
+        msg = bot.send_message(chat_id, "Would you like to order more drinks?", reply_markup=markup)
+        user_data[chat_id]["message_ids"].append(msg.message_id)
+        user_data[chat_id]["state"] = "MORE_DRINKS"
+
+    except ValueError:
+        msg = bot.send_message(chat_id, "Invalid input. Please enter a valid number.")
+        user_data[chat_id]["message_ids"].append(msg.message_id)
+        bot.register_next_step_handler(msg, handle_quantity_selection, selected_drink)
+
+@bot.callback_query_handler(func=lambda call: call.data in ["yes_more_drinks", "no_more_drinks"])
+def handle_more_drinks(call):
+    chat_id = call.message.chat.id
+    if call.data == "yes_more_drinks":
+        show_menu(call.message)
+    else:
         msg = bot.send_message(
             chat_id,
             "Please PayNow Reiyean +6592331010 and upload the payment confirmation photo.\n\n"
-            "Support our scholarship program for underprivileged children—feel free to contribute more than "
-            "the required amount and make a difference today!"
+            "Support our scholarship program for underprivileged children—feel free to contribute more "
+            "than the required amount and make a difference today!"
         )
         user_data[chat_id]["message_ids"].append(msg.message_id)
         bot.register_next_step_handler(msg, handle_payment_confirmation)
 
-    except ValueError:
-        msg = bot.send_message(chat_id, "Please enter a valid quantity.")
-        user_data[chat_id]["message_ids"].append(msg.message_id)
-        bot.register_next_step_handler(msg, handle_quantity_selection, selected_drink)
-
 def handle_payment_confirmation(message):
     chat_id = message.chat.id
     if message.content_type == 'photo':
-        # Assign the queue number only after payment confirmation
         global queue_number
         order_queue_number = queue_number
         queue_number += 1
@@ -166,22 +178,20 @@ def handle_picture(message, order_queue_number):
 @bot.callback_query_handler(func=lambda call: call.data.startswith("order_ready_"))
 def mark_order_as_ready(call):
     user_chat_id = int(call.data.split("_")[-1])
-    bot.send_message(user_chat_id, "Your order is ready for collection!")
-    del user_data[user_chat_id]
+    username = user_data[user_chat_id]["username"]
 
-@bot.message_handler(commands=['cancel'])
-def cancel(message):
-    chat_id = message.chat.id
-    msg = bot.send_message(chat_id, "The order was cancelled.")
-    bot.pin_chat_message(chat_id, msg.message_id)
+    bot.send_message(user_chat_id, "Your order is ready for collection!")
+    bot.send_message(call.message.chat.id, f"The user @{username} has been informed that their order is ready.")
+
+    del user_data[user_chat_id]
 
 @bot.message_handler(commands=['reset_queue'])
 def reset_queue(message):
     chat_id = message.chat.id
-    if chat_id == ADMIN_CHAT_ID:  # Ensure only the admin can reset the queue
+    if chat_id == ADMIN_CHAT_ID:
         try:
             with open(QUEUE_FILE, 'w') as file:
-                file.write('1')  # Reset the queue number to 1
+                file.write('1')
             bot.send_message(chat_id, "Queue number has been reset to 1.")
         except Exception as e:
             bot.send_message(chat_id, f"Failed to reset queue: {e}")
