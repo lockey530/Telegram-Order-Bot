@@ -15,40 +15,36 @@ menu = ["Iced Matcha Latte", "Iced Houjicha Latte", "Iced Chocolate", "Surprise 
 # Store each user's order and state
 user_data = {}
 
-# File ID for the menu image
-MENU_IMAGE_FILE_ID = 'AgACAgUAAxkBAAID3GcPGWk99TJab_qnKizpnIrVjrtZAAIFvzEbnQZ5VP7M3JiITBziAQADAgADeQADNgQ'
-
 # Queue counter file
 QUEUE_FILE = "queue_counter.txt"
 queue_lock = Lock()  # Lock to ensure thread-safe operations
+
+# File ID for the menu image
+MENU_IMAGE_FILE_ID = 'AgACAgUAAxkBAAID3GcPGWk99TJab_qnKizpnIrVjrtZAAIFvzEbnQZ5VP7M3JiITBziAQADAgADeQADNgQ'
 
 # Load the queue number from the file or initialize it
 def load_queue_number():
     if os.path.exists(QUEUE_FILE):
         with open(QUEUE_FILE, 'r') as file:
-            content = file.read().strip()
             try:
-                return int(content)
+                return int(file.read().strip())
             except ValueError:
-                print("Invalid queue number. Resetting to 1.")
                 save_queue_number(1)
                 return 1
-    return 1  # Default to 1 if the file doesn't exist
+    return 1
 
 # Save the updated queue number to the file
-def save_queue_number(queue_number):
+def save_queue_number(number):
     with open(QUEUE_FILE, 'w') as file:
-        file.write(str(queue_number))
+        file.write(str(number))
 
 queue_number = load_queue_number()
 
 @bot.message_handler(commands=['start'])
 def welcome(message):
     chat_id = message.chat.id
-    user_data[chat_id] = {
-        "answers": [], "drink_orders": [], "message_ids": [], 
-        "username": message.from_user.username, "state": "START"
-    }
+    user_data[chat_id] = {"answers": [], "drink_orders": [], "message_ids": [], 
+                          "username": message.from_user.username, "state": "START"}
 
     welcome_text = (
         "Hello! Welcome to the Battambar Order Bot. We are selling Iced Matcha, "
@@ -56,7 +52,6 @@ def welcome(message):
         "Each cup is 4 dollars, and there is 1 dollar off for every 3 drinks. "
         "Our surprise drink is 5 dollars ;)"
     )
-
     msg = bot.send_message(chat_id, welcome_text)
     user_data[chat_id]["message_ids"].append(msg.message_id)
 
@@ -178,8 +173,8 @@ def handle_picture(message, order_queue_number):
     )
 
     bot.send_photo(chat_id, photo_id, caption=f"Order Summary:\n{caption_text}")
-    clear_user_messages(chat_id)
 
+    # Create the button for the admin with initial text
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("Mark as Ready", callback_data=f"order_ready_{chat_id}"))
 
@@ -198,13 +193,16 @@ def mark_order_as_ready(call):
     user_chat_id = int(call.data.split("_")[-1])
     username = user_data[user_chat_id]["username"]
 
-    # Notify the user that their order is ready
-    bot.send_message(user_chat_id, "Your order is ready for collection!")
+    # Update the button text to show that the order is ready
+    markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton("✅ Ready", callback_data="none"))
 
-    # Inform the admin that the user has been notified
+    bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=markup)
+
+    # Notify the user and admin
+    bot.send_message(user_chat_id, "Your order is ready for collection!")
     bot.send_message(call.message.chat.id, f"The user @{username} has been informed that their order is ready.")
 
-    # Clear the user's data after the order is marked as ready
     if user_chat_id in user_data:
         del user_data[user_chat_id]
 
