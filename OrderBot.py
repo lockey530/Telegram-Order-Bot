@@ -20,7 +20,6 @@ MENU_IMAGE_FILE_ID = 'AgACAgUAAxkBAAID3GcPGWk99TJab_qnKizpnIrVjrtZAAIFvzEbnQZ5VP
 # Queue counter file
 QUEUE_FILE = "queue_counter.txt"
 
-# Load the queue number from the file or initialize it
 def load_queue_number():
     if os.path.exists(QUEUE_FILE):
         with open(QUEUE_FILE, 'r') as file:
@@ -31,14 +30,12 @@ def load_queue_number():
                 print("Invalid queue number. Resetting to 1.")
                 save_queue_number(1)
                 return 1
-    return 1  # Default to 1 if file doesn't exist
+    return 1  # Default to 1 if the file doesn't exist
 
-# Save the updated queue number to the file
 def save_queue_number(queue_number):
     with open(QUEUE_FILE, 'w') as file:
         file.write(str(queue_number))
 
-# Initialize the queue number
 queue_number = load_queue_number()
 
 @bot.message_handler(commands=['start'])
@@ -54,14 +51,12 @@ def welcome(message):
         "Our surprise drink is 5 dollars ;)"
     )
 
-    # Send welcome message and menu image
     msg = bot.send_message(chat_id, welcome_text)
     user_data[chat_id]["message_ids"].append(msg.message_id)
 
     menu_msg = bot.send_photo(chat_id, MENU_IMAGE_FILE_ID)
     user_data[chat_id]["message_ids"].append(menu_msg.message_id)
 
-    # Ask the first question
     ask_question(message, 0)
 
 def ask_question(message, question_index):
@@ -77,10 +72,8 @@ def ask_question(message, question_index):
 
 def handle_answer(message, question_index):
     chat_id = message.chat.id
-    # Track both user and bot messages
     user_data[chat_id]["answers"].append(message.text)
     user_data[chat_id]["message_ids"].append(message.message_id)
-
     ask_question(message, question_index + 1)
 
 def show_menu(message):
@@ -177,13 +170,12 @@ def handle_picture(message, order_queue_number):
     bot.send_photo(ADMIN_CHAT_ID, photo_id, caption=f"New Order:\n{caption_text}", reply_markup=markup)
 
 def clear_user_messages(chat_id):
-    """Delete all previous messages for a user."""
     if chat_id in user_data:
         for msg_id in user_data[chat_id]["message_ids"]:
             try:
                 bot.delete_message(chat_id, msg_id)
-            except Exception:
-                pass  # Ignore if already deleted
+            except:
+                pass
         user_data[chat_id]["message_ids"].clear()
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("order_ready_"))
@@ -194,7 +186,7 @@ def mark_order_as_ready(call):
     bot.send_message(user_chat_id, "Your order is ready for collection!")
     bot.send_message(call.message.chat.id, f"The user @{username} has been informed that their order is ready.")
 
-    del user_data[user_chat_id]
+    del user_data[user_chat_id]  # Clear user data after the order is complete
 
 @bot.message_handler(commands=['reset_queue'])
 def reset_queue(message):
