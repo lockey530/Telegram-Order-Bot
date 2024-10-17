@@ -8,10 +8,10 @@ bot = telebot.TeleBot(config.TOKEN)
 # Admin chat ID (your user ID)
 ADMIN_CHAT_ID = 551429608
 
-# Menu options
+# New menu of drink options
 menu = ["Iced Matcha Latte", "Iced Houjicha Latte", "Iced Chocolate", "Surprise Drink"]
 
-# Store user-specific data
+# Store each user's order and state
 user_data = {}
 
 # File ID for the menu image
@@ -27,10 +27,10 @@ def load_queue_number():
             with open(QUEUE_FILE, 'r') as file:
                 return int(file.read().strip())
         else:
-            return 1  # Initialize to 1 if no file exists
+            return 1  # Initialize to 1 if the file does not exist
     except Exception as e:
         print(f"Error loading queue number: {e}")
-        return 1  # Safe fallback
+        return 1
 
 # Save the updated queue number to the file
 def save_queue_number(queue_number):
@@ -99,9 +99,7 @@ def handle_menu_selection(call):
         selected_drink = call.data
         user_data[chat_id]["answers"].append(selected_drink)
 
-        bot.edit_message_reply_markup(chat_id=call.message.chat.id, 
-                                      message_id=call.message.message_id, 
-                                      reply_markup=None)
+        bot.edit_message_reply_markup(chat_id, call.message.message_id, reply_markup=None)
 
         msg = bot.send_message(chat_id, f"How many {selected_drink} would you like?")
         user_data[chat_id]["message_ids"].append(msg.message_id)
@@ -137,10 +135,9 @@ def handle_more_drinks(call):
         show_menu(call.message)
     else:
         msg = bot.send_message(
-            chat_id,
+            chat_id, 
             "Please PayNow Reiyean +6592331010 and upload the payment confirmation photo.\n\n"
-            "Support our scholarship program for underprivileged children—feel free to contribute more "
-            "than the required amount and make a difference today!"
+            "Support our scholarship program for underprivileged children—feel free to contribute more!"
         )
         user_data[chat_id]["message_ids"].append(msg.message_id)
         bot.register_next_step_handler(msg, handle_payment_confirmation)
@@ -168,7 +165,14 @@ def handle_picture(message, order_queue_number):
     answers = "\n".join(user_data[chat_id]["answers"])
     caption_text = f"{answers}\n\nDrinks Ordered:\n{order_summary}\nQueue Number: #{order_queue_number}"
 
-    bot.send_photo(chat_id, photo_id, caption=f"Order Summary:\n{caption_text}")
+    msg = bot.send_photo(chat_id, photo_id, caption=f"Order Summary:\n{caption_text}")
+
+    # Delete all previous messages
+    for msg_id in user_data[chat_id]["message_ids"]:
+        try:
+            bot.delete_message(chat_id, msg_id)
+        except Exception:
+            pass
 
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("Mark as Ready", callback_data=f"order_ready_{chat_id}"))
