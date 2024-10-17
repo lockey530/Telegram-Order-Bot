@@ -8,7 +8,7 @@ bot = telebot.TeleBot(config.TOKEN)
 # Admin chat ID (your user ID)
 ADMIN_CHAT_ID = 551429608
 
-# New menu of drink options
+# Menu options
 menu = ["Iced Matcha Latte", "Iced Houjicha Latte", "Iced Chocolate", "Surprise Drink"]
 
 # Store each user's order and state
@@ -27,7 +27,7 @@ def load_queue_number():
             with open(QUEUE_FILE, 'r') as file:
                 return int(file.read().strip())
         else:
-            return 1  # Initialize to 1 if the file does not exist
+            return 1
     except Exception as e:
         print(f"Error loading queue number: {e}")
         return 1
@@ -40,14 +40,16 @@ def save_queue_number(queue_number):
     except Exception as e:
         print(f"Error saving queue number: {e}")
 
-# Initialize the global queue number
+# Initialize the queue number
 queue_number = load_queue_number()
 
 @bot.message_handler(commands=['start'])
 def welcome(message):
     chat_id = message.chat.id
-    user_data[chat_id] = {"answers": [], "drink_orders": [], "message_ids": [], 
-                          "username": message.from_user.username, "state": "START"}
+    user_data[chat_id] = {
+        "answers": [], "drink_orders": [], "message_ids": [], 
+        "username": message.from_user.username, "state": "START"
+    }
 
     welcome_text = (
         "Hello! Welcome to the Battambar Order Bot. We are selling Iced Matcha, "
@@ -135,7 +137,7 @@ def handle_more_drinks(call):
         show_menu(call.message)
     else:
         msg = bot.send_message(
-            chat_id, 
+            chat_id,
             "Please PayNow Reiyean +6592331010 and upload the payment confirmation photo.\n\n"
             "Support our scholarship program for underprivileged children—feel free to contribute more!"
         )
@@ -165,19 +167,27 @@ def handle_picture(message, order_queue_number):
     answers = "\n".join(user_data[chat_id]["answers"])
     caption_text = f"{answers}\n\nDrinks Ordered:\n{order_summary}\nQueue Number: #{order_queue_number}"
 
+    # Send order summary to the user
     msg = bot.send_photo(chat_id, photo_id, caption=f"Order Summary:\n{caption_text}")
 
     # Delete all previous messages
-    for msg_id in user_data[chat_id]["message_ids"]:
-        try:
-            bot.delete_message(chat_id, msg_id)
-        except Exception:
-            pass
+    clear_user_messages(chat_id)
 
+    # Notify admin with the order and queue number
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("Mark as Ready", callback_data=f"order_ready_{chat_id}"))
 
     bot.send_photo(ADMIN_CHAT_ID, photo_id, caption=f"New Order:\n{caption_text}", reply_markup=markup)
+
+def clear_user_messages(chat_id):
+    """Delete all previous messages for a user."""
+    if chat_id in user_data:
+        for msg_id in user_data[chat_id]["message_ids"]:
+            try:
+                bot.delete_message(chat_id, msg_id)
+            except Exception:
+                pass  # Ignore any errors (e.g., if message was already deleted)
+        user_data[chat_id]["message_ids"].clear()  # Clear the list after deleting
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("order_ready_"))
 def mark_order_as_ready(call):
