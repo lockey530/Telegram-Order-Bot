@@ -8,7 +8,7 @@ bot = telebot.TeleBot(config.TOKEN)
 # Admin chat ID (your user ID)
 ADMIN_CHAT_ID = 551429608
 
-# Menu options
+# New menu of drink options
 menu = ["Iced Matcha Latte", "Iced Houjicha Latte", "Iced Chocolate", "Surprise Drink"]
 
 # Store each user's order and state
@@ -22,34 +22,24 @@ QUEUE_FILE = "queue_counter.txt"
 
 # Load the queue number from the file or initialize it
 def load_queue_number():
-    try:
-        if os.path.exists(QUEUE_FILE):
-            with open(QUEUE_FILE, 'r') as file:
-                return int(file.read().strip())
-        else:
-            return 1
-    except Exception as e:
-        print(f"Error loading queue number: {e}")
-        return 1
+    if os.path.exists(QUEUE_FILE):
+        with open(QUEUE_FILE, 'r') as file:
+            return int(file.read().strip())
+    return 1  # Initialize to 1 if the file does not exist
 
 # Save the updated queue number to the file
 def save_queue_number(queue_number):
-    try:
-        with open(QUEUE_FILE, 'w') as file:
-            file.write(str(queue_number))
-    except Exception as e:
-        print(f"Error saving queue number: {e}")
+    with open(QUEUE_FILE, 'w') as file:
+        file.write(str(queue_number))
 
-# Initialize the queue number
+# Initialize the global queue number
 queue_number = load_queue_number()
 
 @bot.message_handler(commands=['start'])
 def welcome(message):
     chat_id = message.chat.id
-    user_data[chat_id] = {
-        "answers": [], "drink_orders": [], "message_ids": [], 
-        "username": message.from_user.username, "state": "START"
-    }
+    user_data[chat_id] = {"answers": [], "drink_orders": [], "message_ids": [], 
+                          "username": message.from_user.username, "state": "START"}
 
     welcome_text = (
         "Hello! Welcome to the Battambar Order Bot. We are selling Iced Matcha, "
@@ -167,13 +157,10 @@ def handle_picture(message, order_queue_number):
     answers = "\n".join(user_data[chat_id]["answers"])
     caption_text = f"{answers}\n\nDrinks Ordered:\n{order_summary}\nQueue Number: #{order_queue_number}"
 
-    # Send order summary to the user
     msg = bot.send_photo(chat_id, photo_id, caption=f"Order Summary:\n{caption_text}")
 
-    # Delete all previous messages
     clear_user_messages(chat_id)
 
-    # Notify admin with the order and queue number
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("Mark as Ready", callback_data=f"order_ready_{chat_id}"))
 
@@ -185,9 +172,9 @@ def clear_user_messages(chat_id):
         for msg_id in user_data[chat_id]["message_ids"]:
             try:
                 bot.delete_message(chat_id, msg_id)
-            except Exception:
-                pass  # Ignore any errors (e.g., if message was already deleted)
-        user_data[chat_id]["message_ids"].clear()  # Clear the list after deleting
+            except:
+                pass  # Ignore if already deleted
+        user_data[chat_id]["message_ids"].clear()
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("order_ready_"))
 def mark_order_as_ready(call):
@@ -203,12 +190,8 @@ def mark_order_as_ready(call):
 def reset_queue(message):
     chat_id = message.chat.id
     if chat_id == ADMIN_CHAT_ID:
-        try:
-            with open(QUEUE_FILE, 'w') as file:
-                file.write('1')
-            bot.send_message(chat_id, "Queue number has been reset to 1.")
-        except Exception as e:
-            bot.send_message(chat_id, f"Failed to reset queue: {e}")
+        save_queue_number(1)
+        bot.send_message(chat_id, "Queue number has been reset to 1.")
     else:
         bot.send_message(chat_id, "You are not authorized to reset the queue.")
 
