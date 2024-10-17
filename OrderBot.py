@@ -22,10 +22,16 @@ QUEUE_FILE = "queue_counter.txt"
 
 # Load the queue number from the file or initialize it
 def load_queue_number():
-    if os.path.exists(QUEUE_FILE):
-        with open(QUEUE_FILE, 'r') as file:
-            return int(file.read().strip())
-    return 1  # Initialize to 1 if the file does not exist
+    try:
+        if os.path.exists(QUEUE_FILE):
+            with open(QUEUE_FILE, 'r') as file:
+                content = file.read().strip()
+                return int(content)  # Try converting content to integer
+        return 1  # Default to 1 if the file does not exist
+    except (ValueError, FileNotFoundError):
+        print("Invalid or missing queue number. Resetting to 1.")
+        save_queue_number(1)  # Reset to 1 if there was an error
+        return 1
 
 # Save the updated queue number to the file
 def save_queue_number(queue_number):
