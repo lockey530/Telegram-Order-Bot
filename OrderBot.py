@@ -22,23 +22,23 @@ QUEUE_FILE = "queue_counter.txt"
 
 # Load the queue number from the file or initialize it
 def load_queue_number():
-    try:
-        if os.path.exists(QUEUE_FILE):
-            with open(QUEUE_FILE, 'r') as file:
-                content = file.read().strip()
-                return int(content)  # Try converting content to integer
-        return 1  # Default to 1 if the file does not exist
-    except (ValueError, FileNotFoundError):
-        print("Invalid or missing queue number. Resetting to 1.")
-        save_queue_number(1)  # Reset to 1 if there was an error
-        return 1
+    if os.path.exists(QUEUE_FILE):
+        with open(QUEUE_FILE, 'r') as file:
+            content = file.read().strip()
+            try:
+                return int(content)
+            except ValueError:
+                print("Invalid queue number. Resetting to 1.")
+                save_queue_number(1)
+                return 1
+    return 1  # Default to 1 if file doesn't exist
 
 # Save the updated queue number to the file
 def save_queue_number(queue_number):
     with open(QUEUE_FILE, 'w') as file:
         file.write(str(queue_number))
 
-# Initialize the global queue number
+# Initialize the queue number
 queue_number = load_queue_number()
 
 @bot.message_handler(commands=['start'])
@@ -54,12 +54,14 @@ def welcome(message):
         "Our surprise drink is 5 dollars ;)"
     )
 
+    # Send welcome message and menu image
     msg = bot.send_message(chat_id, welcome_text)
     user_data[chat_id]["message_ids"].append(msg.message_id)
 
     menu_msg = bot.send_photo(chat_id, MENU_IMAGE_FILE_ID)
     user_data[chat_id]["message_ids"].append(menu_msg.message_id)
 
+    # Ask the first question
     ask_question(message, 0)
 
 def ask_question(message, question_index):
@@ -75,8 +77,10 @@ def ask_question(message, question_index):
 
 def handle_answer(message, question_index):
     chat_id = message.chat.id
+    # Track both user and bot messages
     user_data[chat_id]["answers"].append(message.text)
     user_data[chat_id]["message_ids"].append(message.message_id)
+
     ask_question(message, question_index + 1)
 
 def show_menu(message):
@@ -178,7 +182,7 @@ def clear_user_messages(chat_id):
         for msg_id in user_data[chat_id]["message_ids"]:
             try:
                 bot.delete_message(chat_id, msg_id)
-            except:
+            except Exception:
                 pass  # Ignore if already deleted
         user_data[chat_id]["message_ids"].clear()
 
