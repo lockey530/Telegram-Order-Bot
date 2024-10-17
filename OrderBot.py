@@ -2,6 +2,7 @@ import telebot
 import config
 import os
 from telebot import types
+from threading import Lock  # To ensure thread safety
 
 bot = telebot.TeleBot(config.TOKEN)
 
@@ -19,7 +20,9 @@ MENU_IMAGE_FILE_ID = 'AgACAgUAAxkBAAID3GcPGWk99TJab_qnKizpnIrVjrtZAAIFvzEbnQZ5VP
 
 # Queue counter file
 QUEUE_FILE = "queue_counter.txt"
+queue_lock = Lock()  # Lock to ensure thread-safe operations
 
+# Load the queue number from the file or initialize it
 def load_queue_number():
     if os.path.exists(QUEUE_FILE):
         with open(QUEUE_FILE, 'r') as file:
@@ -32,6 +35,7 @@ def load_queue_number():
                 return 1
     return 1  # Default to 1 if the file doesn't exist
 
+# Save the updated queue number to the file
 def save_queue_number(queue_number):
     with open(QUEUE_FILE, 'w') as file:
         file.write(str(queue_number))
@@ -140,10 +144,11 @@ def handle_more_drinks(call):
 def handle_payment_confirmation(message):
     chat_id = message.chat.id
     if message.content_type == 'photo':
-        global queue_number
-        order_queue_number = queue_number
-        queue_number += 1
-        save_queue_number(queue_number)
+        with queue_lock:  # Ensure thread-safe access to the queue number
+            global queue_number
+            order_queue_number = queue_number
+            queue_number += 1
+            save_queue_number(queue_number)
 
         user_data[chat_id]["answers"].append(f"Queue Number: #{order_queue_number}")
         handle_picture(message, order_queue_number)
@@ -186,7 +191,7 @@ def mark_order_as_ready(call):
     bot.send_message(user_chat_id, "Your order is ready for collection!")
     bot.send_message(call.message.chat.id, f"The user @{username} has been informed that their order is ready.")
 
-    del user_data[user_chat_id]  # Clear user data after the order is complete
+    del user_data[user_chat_id]
 
 @bot.message_handler(commands=['reset_queue'])
 def reset_queue(message):
