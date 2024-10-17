@@ -143,6 +143,11 @@ def handle_more_drinks(call):
 
 def handle_payment_confirmation(message):
     chat_id = message.chat.id
+
+    # Ensure the state is "AWAITING_PAYMENT" to prevent duplicate handling
+    if user_data[chat_id].get("state") != "AWAITING_PAYMENT":
+        return  # Ignore if already processed
+
     if message.content_type == 'photo':
         with queue_lock:  # Ensure thread-safe access to the queue number
             global queue_number
@@ -150,7 +155,12 @@ def handle_payment_confirmation(message):
             queue_number += 1
             save_queue_number(queue_number)
 
+        # Store the queue number only once
+        user_data[chat_id]["queue_number"] = order_queue_number
         user_data[chat_id]["answers"].append(f"Queue Number: #{order_queue_number}")
+
+        # Move to the next state to prevent reprocessing
+        user_data[chat_id]["state"] = "COMPLETED"
         handle_picture(message, order_queue_number)
     else:
         msg = bot.send_message(chat_id, "Please upload a photo for payment confirmation.")
@@ -161,18 +171,33 @@ def handle_picture(message, order_queue_number):
     chat_id = message.chat.id
     photo_id = message.photo[-1].file_id
 
-    order_summary = "\n".join(user_data[chat_id]["drink_orders"])
-    answers = "\n".join(user_data[chat_id]["answers"])
-    caption_text = f"{answers}\n\nDrinks Ordered:\n{order_summary}\nQueue Number: #{order_queue_number}"
+    # Retrieve user details and drink orders
+    name = user_data[chat_id]["answers"][0]  # User's name
+    telegram_handle = user_data[chat_id]["answers"][1]  # User's Telegram handle
+    drink_orders = "\n".join(user_data[chat_id]["drink_orders"])  # Format drink orders
+    queue_number_display = user_data[chat_id]["queue_number"]  # Queue number
 
+    # Construct the formatted caption for the order summary
+    caption_text = (
+        f"New Order:\n"
+        f"{name}\n"
+        f"{telegram_handle}\n"
+        f"{drink_orders}\n"
+        f"Queue Number: #{queue_number_display}"
+    )
+
+    # Send the order summary to the user
     msg = bot.send_photo(chat_id, photo_id, caption=f"Order Summary:\n{caption_text}")
 
+    # Clear previous user messages
     clear_user_messages(chat_id)
 
+    # Create a button for the admin to mark the order as ready
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("Mark as Ready", callback_data=f"order_ready_{chat_id}"))
 
-    bot.send_photo(ADMIN_CHAT_ID, photo_id, caption=f"New Order:\n{caption_text}", reply_markup=markup)
+    # Send the same summary to the admin
+    bot.send_photo(ADMIN_CHAT_ID, photo_id, caption=caption_text, reply_markup=markup)
 
 def clear_user_messages(chat_id):
     if chat_id in user_data:
