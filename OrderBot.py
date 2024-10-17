@@ -134,7 +134,7 @@ def handle_more_drinks(call):
         msg = bot.send_message(
             chat_id,
             "Please PayNow Reiyean +6592331010 and upload the payment confirmation photo.\n\n"
-            "Support our scholarship program for underprivileged children—feel free to contribute more!"
+            "Support our scholarship program for underprivileged children—feel free to contribute more and make a difference today!"
         )
         user_data[chat_id]["message_ids"].append(msg.message_id)
         bot.register_next_step_handler(msg, handle_payment_confirmation)
