@@ -196,8 +196,17 @@ def clear_user_messages(chat_id):
 @bot.callback_query_handler(func=lambda call: call.data.startswith("order_ready_"))
 def mark_order_as_ready(call):
     user_chat_id = int(call.data.split("_")[-1])
+    username = user_data[user_chat_id]["username"]
+
+    # Notify the user that their order is ready
     bot.send_message(user_chat_id, "Your order is ready for collection!")
-    del user_data[user_chat_id]
+
+    # Inform the admin that the user has been notified
+    bot.send_message(call.message.chat.id, f"The user @{username} has been informed that their order is ready.")
+
+    # Clear the user's data after the order is marked as ready
+    if user_chat_id in user_data:
+        del user_data[user_chat_id]
 
 @bot.message_handler(commands=['reset_queue'])
 def reset_queue(message):
