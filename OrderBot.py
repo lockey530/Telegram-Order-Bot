@@ -43,8 +43,13 @@ queue_number = load_queue_number()
 @bot.message_handler(commands=['start'])
 def welcome(message):
     chat_id = message.chat.id
-    user_data[chat_id] = {"answers": [], "drink_orders": [], "message_ids": [], 
-                          "username": message.from_user.username, "state": "START"}
+    user_data[chat_id] = {
+        "answers": [], 
+        "drink_orders": [], 
+        "message_ids": [], 
+        "username": message.from_user.username, 
+        "state": "START"
+    }
 
     welcome_text = (
         "Hello! Welcome to the Battambar Order Bot. We are selling Iced Matcha, "
@@ -127,29 +132,38 @@ def handle_quantity_selection(message, selected_drink):
 @bot.callback_query_handler(func=lambda call: call.data in ["yes_more_drinks", "no_more_drinks"])
 def handle_more_drinks(call):
     chat_id = call.message.chat.id
+
     if call.data == "yes_more_drinks":
         show_menu(call.message)
     else:
-        user_data[chat_id]["state"] = "AWAITING_PAYMENT"
-        msg = bot.send_message(
-            chat_id,
-            "Please PayNow Reiyean +6592331010 and upload the payment confirmation photo.\n\n"
-            "Support our scholarship program for underprivileged children—feel free to contribute more and make a difference today!"
-        )
-        user_data[chat_id]["message_ids"].append(msg.message_id)
-        bot.register_next_step_handler(msg, handle_payment_confirmation)
+        if user_data[chat_id]["state"] != "AWAITING_PAYMENT":
+            user_data[chat_id]["state"] = "AWAITING_PAYMENT"
+            msg = bot.send_message(
+                chat_id,
+                "Please PayNow Reiyean +6592331010 and upload the payment confirmation photo.\n\n"
+                "Support our scholarship program for underprivileged children—"
+                "feel free to contribute more and make a difference today!"
+            )
+            user_data[chat_id]["message_ids"].append(msg.message_id)
+            bot.register_next_step_handler(msg, handle_payment_confirmation)
 
 def handle_payment_confirmation(message):
     chat_id = message.chat.id
 
-    if message.content_type == 'photo' and user_data[chat_id]["state"] == "AWAITING_PAYMENT":
+    if user_data[chat_id]["state"] != "AWAITING_PAYMENT":
+        bot.send_message(chat_id, "Payment has already been processed.")
+        return
+
+    if message.content_type == 'photo':
         with queue_lock:
             global queue_number
             order_queue_number = queue_number
             queue_number += 1
             save_queue_number(queue_number)
 
+        user_data[chat_id]["state"] = "PAYMENT_CONFIRMED"
         user_data[chat_id]["queue_number"] = order_queue_number
+
         handle_picture(message, order_queue_number)
     else:
         msg = bot.send_message(chat_id, "Please upload a valid photo for payment confirmation.")
@@ -174,11 +188,35 @@ def handle_picture(message, order_queue_number):
 
     bot.send_photo(chat_id, photo_id, caption=f"Order Summary:\n{caption_text}")
 
-    # Create the button for the admin with initial text
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("Mark as Ready", callback_data=f"order_ready_{chat_id}"))
 
     bot.send_photo(ADMIN_CHAT_ID, photo_id, caption=caption_text, reply_markup=markup)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("order_ready_"))
+def mark_order_as_ready(call):
+    bot.answer_callback_query(call.id)
+
+    try:
+        user_chat_id = int(call.data.split("_")[-1])
+        if user_chat_id not in user_data:
+            bot.send_message(call.message.chat.id, "Order already processed or user not found.")
+            return
+
+        username = user_data[user_chat_id]["username"]
+
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("✅ Ready", callback_data="none"))
+
+        bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=markup)
+        bot.send_message(user_chat_id, "Your order is ready for collection!")
+        bot.send_message(call.message.chat.id, f"The user @{username} has been informed.")
+
+        clear_user_messages(user_chat_id)
+        del user_data[user_chat_id]
+
+    except Exception as e:
+        bot.send_message(call.message.chat.id, f"Error processing the order: {str(e)}")
 
 def clear_user_messages(chat_id):
     for msg_id in user_data[chat_id]["message_ids"]:
@@ -188,28 +226,10 @@ def clear_user_messages(chat_id):
             pass
     user_data[chat_id]["message_ids"].clear()
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("order_ready_"))
-def mark_order_as_ready(call):
-    user_chat_id = int(call.data.split("_")[-1])
-    username = user_data[user_chat_id]["username"]
-
-    # Update the button text to show that the order is ready
-    markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton("✅ Ready", callback_data="none"))
-
-    bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=markup)
-
-    # Notify the user and admin
-    bot.send_message(user_chat_id, "Your order is ready for collection!")
-    bot.send_message(call.message.chat.id, f"The user @{username} has been informed that their order is ready.")
-
-    if user_chat_id in user_data:
-        del user_data[user_chat_id]
-
 @bot.message_handler(commands=['reset_queue'])
 def reset_queue(message):
     if message.chat.id == ADMIN_CHAT_ID:
         save_queue_number(1)
         bot.send_message(message.chat.id, "Queue number has been reset to 1.")
 
-bot.polling(none_stop=True)
+bot.polling(none_stop=True, interval=0, timeout=20)
