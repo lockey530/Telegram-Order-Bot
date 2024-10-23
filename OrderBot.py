@@ -22,7 +22,7 @@ user_data = {}
 QUEUE_FILE = "queue_counter.txt"
 queue_lock = Lock()
 
-# New File ID for the menu image
+# File ID for the menu image
 MENU_IMAGE_FILE_ID = 'AgACAgUAAxkBAAIMwGcYcU5hRcX49m1PlXZZZI_H4qmmAAJPvTEbMwPBVLBRAiCOhyJkAQADAgADeQADNgQ'
 
 # Load queue number from file
@@ -45,7 +45,11 @@ queue_number = load_queue_number()
 @bot.message_handler(commands=['start'])
 def welcome(message):
     chat_id = message.chat.id
-    user_data[chat_id] = {"answers": [], "drink_orders": [], "message_ids": [], "username": message.from_user.username, "state": "START"}
+    user_data[chat_id] = {
+        "answers": [], "drink_orders": [], 
+        "message_ids": [], "username": message.from_user.username, 
+        "state": "START"
+    }
 
     msg = bot.send_message(chat_id, "Welcome to the Drinks Order Bot!")
     user_data[chat_id]["message_ids"].append(msg.message_id)
@@ -88,6 +92,7 @@ def show_drink_menu(call):
     chat_id = call.message.chat.id
     category = call.data
     user_data[chat_id]["state"] = "CHOOSING_DRINK"
+    user_data[chat_id]["selected_category"] = category  # Save selected category
 
     markup = types.InlineKeyboardMarkup()
     for drink in menu[category]:
@@ -103,6 +108,39 @@ def handle_drink_selection(call):
 
     bot.edit_message_reply_markup(chat_id, call.message.message_id, reply_markup=None)
 
+    # If a liquor is chosen, prompt for a mixer
+    if user_data[chat_id]["selected_category"] == "Liquor":
+        ask_for_mixer(chat_id, selected_drink)
+    else:
+        ask_quantity(call.message, selected_drink)
+
+def ask_for_mixer(chat_id, selected_drink):
+    user_data[chat_id]["state"] = "CHOOSING_MIXER"
+    user_data[chat_id]["selected_drink"] = selected_drink  # Save the liquor
+
+    markup = types.InlineKeyboardMarkup()
+    for mixer in menu["Soft Drinks"]:
+        markup.add(types.InlineKeyboardButton(mixer, callback_data=mixer))
+
+    msg = bot.send_message(chat_id, "Please select a mixer:", reply_markup=markup)
+    user_data[chat_id]["message_ids"].append(msg.message_id)
+
+@bot.callback_query_handler(func=lambda call: call.data in menu["Soft Drinks"])
+def handle_mixer_selection(call):
+    chat_id = call.message.chat.id
+    mixer = call.data
+    selected_drink = user_data[chat_id]["selected_drink"]
+
+    # Save the liquor and mixer as a combined order
+    combined_order = f"{selected_drink} with {mixer}"
+    user_data[chat_id]["answers"].append(combined_order)
+
+    bot.edit_message_reply_markup(chat_id, call.message.message_id, reply_markup=None)
+
+    ask_quantity(call.message, combined_order)
+
+def ask_quantity(message, selected_drink):
+    chat_id = message.chat.id
     msg = bot.send_message(chat_id, f"How many {selected_drink} would you like?")
     user_data[chat_id]["message_ids"].append(msg.message_id)
     user_data[chat_id]["state"] = "CHOOSING_QUANTITY"
@@ -186,3 +224,4 @@ def reset_queue(message):
         bot.send_message(message.chat.id, "Queue number has been reset to 1.")
 
 bot.polling(none_stop=True, interval=0, timeout=20)
+
