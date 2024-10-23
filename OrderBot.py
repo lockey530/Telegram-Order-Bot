@@ -208,7 +208,7 @@ def mark_order_as_ready(call):
         markup.add(types.InlineKeyboardButton("✅ Ready", callback_data="none"))
 
         bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=markup)
-        bot.send_message(user_chat_id, "Your order is ready for collection!")
+        bot.send_message(user_chat_id, "Your order is ready for collection! Enjoy your drink!")
         bot.send_message(call.message.chat.id, f"The user @{username} has been informed.")
 
         clear_user_messages(user_chat_id)
