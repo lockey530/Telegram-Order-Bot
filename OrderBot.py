@@ -120,6 +120,7 @@ def ask_for_mixer(chat_id, selected_drink):
     markup = types.InlineKeyboardMarkup()
     for mixer in menu["Soft Drinks"]:
         markup.add(types.InlineKeyboardButton(mixer, callback_data=f"mixer_{mixer}"))
+    markup.add(types.InlineKeyboardButton("No Mixer", callback_data="mixer_None"))
 
     msg = bot.send_message(chat_id, "Please select a mixer:", reply_markup=markup)
     user_data[chat_id]["message_ids"].append(msg.message_id)
@@ -130,7 +131,7 @@ def handle_mixer_selection(call):
     mixer = call.data.split("_")[1]
     selected_drink = user_data[chat_id]["selected_drink"]
 
-    combined_order = f"{selected_drink} with {mixer}"
+    combined_order = f"{selected_drink} with {mixer}" if mixer != "None" else selected_drink
     user_data[chat_id]["answers"].append(combined_order)
 
     bot.edit_message_reply_markup(chat_id, call.message.message_id, reply_markup=None)
