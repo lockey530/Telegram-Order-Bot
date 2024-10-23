@@ -18,7 +18,7 @@ menu = {
 # Store each user's order and state
 user_data = {}
 
-# Queue counter file and lock
+# Queue counter file and lock for thread-safe queue operations
 QUEUE_FILE = "queue_counter.txt"
 queue_lock = Lock()
 
@@ -51,7 +51,7 @@ def welcome(message):
         "state": "START"
     }
 
-    msg = bot.send_message(chat_id, "Welcome to the Epoque Drinks Order Bot! Please note that these drinks are from the open bar and will not be served to your table. Please come collect it once the bot informs you that its ready!")
+    msg = bot.send_message(chat_id, "Welcome to the Drinks Order Bot!")
     user_data[chat_id]["message_ids"].append(msg.message_id)
 
     menu_msg = bot.send_photo(chat_id, MENU_IMAGE_FILE_ID)
@@ -175,9 +175,18 @@ def handle_more_drinks(call):
 
 def finalize_order(message):
     chat_id = message.chat.id
+    with queue_lock:
+        global queue_number
+        order_queue_number = queue_number
+        queue_number += 1
+        save_queue_number(queue_number)
+
     order_summary = "\n".join(user_data[chat_id]["drink_orders"])
     answers = user_data[chat_id]["answers"]
-    caption_text = f"Order Summary:\n{answers[0]}\n{answers[1]}\n{order_summary}"
+    caption_text = (
+        f"Order Summary:\n{answers[0]}\n{answers[1]}\n{order_summary}\n"
+        f"Queue Number: #{order_queue_number}"
+    )
 
     bot.send_message(chat_id, caption_text)
 
@@ -213,7 +222,6 @@ def clear_user_messages(chat_id):
             bot.delete_message(chat_id, msg_id)
         except:
             pass
-    user_data[chat_id]["message_ids"].clear()
 
 @bot.message_handler(commands=['reset_queue'])
 def reset_queue(message):
