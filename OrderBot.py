@@ -51,7 +51,7 @@ def welcome(message):
         "state": "START"
     }
 
-    msg = bot.send_message(chat_id, "Welcome to the Drinks Order Bot!")
+    msg = bot.send_message(chat_id, "Welcome to the Epoque Drinks Order Bot! Please note that these drinks will be prepared at the open bar. Please come to the open bar and collect it when the bot prompts you to do so!")
     user_data[chat_id]["message_ids"].append(msg.message_id)
 
     menu_msg = bot.send_photo(chat_id, MENU_IMAGE_FILE_ID)
