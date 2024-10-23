@@ -186,3 +186,10 @@ def reset_queue(message):
         bot.send_message(message.chat.id, "Queue number has been reset to 1.")
 
 bot.polling(none_stop=True, interval=0, timeout=20)
+
+@bot.message_handler(content_types=['photo'])
+def get_photo_id(message):
+    print(f"File ID: {message.photo[-1].file_id}")
+
+bot.polling()
+
