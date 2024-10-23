@@ -6,8 +6,8 @@ from threading import Lock  # To ensure thread safety
 
 bot = telebot.TeleBot(config.TOKEN)
 
-# Admin chat ID (your user ID)
-ADMIN_CHAT_ID = 551429608
+# List of admin chat IDs (replace with actual Telegram user IDs)
+ADMIN_CHAT_IDS = [551429608, 881189472]  # Add more admin IDs as needed
 
 # Updated menu structure
 menu = {
@@ -51,7 +51,7 @@ def welcome(message):
         "state": "START"
     }
 
-    msg = bot.send_message(chat_id, "Welcome to the Drinks Order Bot!Plase note that these drinks will be served at the open bar and will not be delivered to your table. Please come and collect them when the bot prompts you to!")
+    msg = bot.send_message(chat_id, "Welcome to the Drinks Order Bot!")
     user_data[chat_id]["message_ids"].append(msg.message_id)
 
     menu_msg = bot.send_photo(chat_id, MENU_IMAGE_FILE_ID)
@@ -193,7 +193,8 @@ def finalize_order(message):
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("Mark as Ready", callback_data=f"order_ready_{chat_id}"))
 
-    bot.send_message(ADMIN_CHAT_ID, f"New Order:\n{caption_text}", reply_markup=markup)
+    for admin_id in ADMIN_CHAT_IDS:
+        bot.send_message(admin_id, f"New Order:\n{caption_text}", reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("order_ready_"))
 def mark_order_as_ready(call):
@@ -225,7 +226,7 @@ def clear_user_messages(chat_id):
 
 @bot.message_handler(commands=['reset_queue'])
 def reset_queue(message):
-    if message.chat.id == ADMIN_CHAT_ID:
+    if message.chat.id in ADMIN_CHAT_IDS:
         save_queue_number(1)
         bot.send_message(message.chat.id, "Queue number has been reset to 1.")
 
