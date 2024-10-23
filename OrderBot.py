@@ -92,7 +92,7 @@ def show_drink_menu(call):
     chat_id = call.message.chat.id
     category = call.data
     user_data[chat_id]["state"] = "CHOOSING_DRINK"
-    user_data[chat_id]["selected_category"] = category  # Save selected category
+    user_data[chat_id]["selected_category"] = category
 
     markup = types.InlineKeyboardMarkup()
     for drink in menu[category]:
@@ -108,7 +108,6 @@ def handle_drink_selection(call):
 
     bot.edit_message_reply_markup(chat_id, call.message.message_id, reply_markup=None)
 
-    # If a liquor is chosen, prompt for a mixer
     if user_data[chat_id]["selected_category"] == "Liquor":
         ask_for_mixer(chat_id, selected_drink)
     else:
@@ -116,22 +115,21 @@ def handle_drink_selection(call):
 
 def ask_for_mixer(chat_id, selected_drink):
     user_data[chat_id]["state"] = "CHOOSING_MIXER"
-    user_data[chat_id]["selected_drink"] = selected_drink  # Save the liquor
+    user_data[chat_id]["selected_drink"] = selected_drink
 
     markup = types.InlineKeyboardMarkup()
     for mixer in menu["Soft Drinks"]:
-        markup.add(types.InlineKeyboardButton(mixer, callback_data=mixer))
+        markup.add(types.InlineKeyboardButton(mixer, callback_data=f"mixer_{mixer}"))
 
     msg = bot.send_message(chat_id, "Please select a mixer:", reply_markup=markup)
     user_data[chat_id]["message_ids"].append(msg.message_id)
 
-@bot.callback_query_handler(func=lambda call: call.data in menu["Soft Drinks"])
+@bot.callback_query_handler(func=lambda call: call.data.startswith("mixer_"))
 def handle_mixer_selection(call):
     chat_id = call.message.chat.id
-    mixer = call.data
+    mixer = call.data.split("_")[1]
     selected_drink = user_data[chat_id]["selected_drink"]
 
-    # Save the liquor and mixer as a combined order
     combined_order = f"{selected_drink} with {mixer}"
     user_data[chat_id]["answers"].append(combined_order)
 
@@ -224,4 +222,3 @@ def reset_queue(message):
         bot.send_message(message.chat.id, "Queue number has been reset to 1.")
 
 bot.polling(none_stop=True, interval=0, timeout=20)
-
