@@ -7,7 +7,7 @@ from threading import Lock  # For thread safety
 bot = telebot.TeleBot(config.TOKEN)
 
 # List of admin chat IDs
-ADMIN_CHAT_IDS = [551429608, 881189472]
+ADMIN_CHAT_IDS = [551429608, 881189472]  # Add more admin IDs as needed
 
 # Updated menu structure
 menu = {
@@ -18,7 +18,7 @@ menu = {
 # Store each user's order and state
 user_data = {}
 
-# Queue counter file and lock for thread-safe operations
+# Queue counter file and lock for thread-safe queue operations
 QUEUE_FILE = "queue_counter.txt"
 queue_lock = Lock()
 
@@ -42,27 +42,16 @@ def save_queue_number(number):
 
 queue_number = load_queue_number()
 
-def initialize_user_data(chat_id, username):
-    """Initialize user data for the chat ID."""
-    if chat_id not in user_data:
-        user_data[chat_id] = {
-            "answers": [], "drink_orders": [], 
-            "message_ids": [], "username": username,
-            "state": "START", "selected_drink": None
-        }
-
 @bot.message_handler(commands=['start'])
 def welcome(message):
     chat_id = message.chat.id
-    username = message.from_user.username or "User"
-    initialize_user_data(chat_id, username)
+    user_data[chat_id] = {
+        "answers": [], "drink_orders": [], 
+        "message_ids": [], "username": message.from_user.username, 
+        "state": "START"
+    }
 
-    msg = bot.send_message(
-        chat_id,
-        "Welcome to the Epoque Drinks Order Bot! "
-        "These drinks will be prepared at the open bar. "
-        "Please collect them when notified!"
-    )
+    msg = bot.send_message(chat_id, "Welcome to the Epoque Drinks Order Bot! Please note that these drinks will be prepared at the open bar. Please come to the open bar and collect it when the bot prompts you to do so!")
     user_data[chat_id]["message_ids"].append(msg.message_id)
 
     menu_msg = bot.send_photo(chat_id, MENU_IMAGE_FILE_ID)
@@ -115,7 +104,7 @@ def show_drink_menu(call):
 def handle_drink_selection(call):
     chat_id = call.message.chat.id
     selected_drink = call.data
-    user_data[chat_id]["selected_drink"] = selected_drink
+    user_data[chat_id]["answers"].append(selected_drink)
 
     bot.edit_message_reply_markup(chat_id, call.message.message_id, reply_markup=None)
 
@@ -126,28 +115,31 @@ def handle_drink_selection(call):
 
 def ask_for_mixer(chat_id, selected_drink):
     user_data[chat_id]["state"] = "CHOOSING_MIXER"
+    user_data[chat_id]["selected_drink"] = selected_drink
 
     markup = types.InlineKeyboardMarkup()
     for mixer in menu["Soft Drinks"]:
         markup.add(types.InlineKeyboardButton(mixer, callback_data=f"mixer_{mixer}"))
-    markup.add(types.InlineKeyboardButton("No Mixer", callback_data="no_mixer"))
+    markup.add(types.InlineKeyboardButton("No Mixer", callback_data="mixer_None"))
 
     msg = bot.send_message(chat_id, "Please select a mixer:", reply_markup=markup)
     user_data[chat_id]["message_ids"].append(msg.message_id)
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("mixer_") or call.data == "no_mixer")
+@bot.callback_query_handler(func=lambda call: call.data.startswith("mixer_"))
 def handle_mixer_selection(call):
     chat_id = call.message.chat.id
+    mixer = call.data.split("_")[1]
+    selected_drink = user_data[chat_id]["selected_drink"]
 
-    if call.data == "no_mixer":
-        combined_order = user_data[chat_id]["selected_drink"]
+    if mixer == "None":
+        combined_order = selected_drink
     else:
-        mixer = call.data.split("_")[1]
-        combined_order = f"{user_data[chat_id]['selected_drink']} with {mixer}"
+        combined_order = f"{selected_drink} with {mixer}"
 
-    user_data[chat_id]["drink_orders"].append(combined_order)
+    user_data[chat_id]["answers"].append(combined_order)
 
     bot.edit_message_reply_markup(chat_id, call.message.message_id, reply_markup=None)
+
     ask_quantity(call.message, combined_order)
 
 def ask_quantity(message, selected_drink):
@@ -165,12 +157,26 @@ def handle_quantity_selection(message, selected_drink):
             raise ValueError
 
         user_data[chat_id]["drink_orders"].append(f"{quantity} x {selected_drink}")
-        finalize_order(message)
+
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("Yes", callback_data="yes_more_drinks"))
+        markup.add(types.InlineKeyboardButton("No", callback_data="no_more_drinks"))
+
+        msg = bot.send_message(chat_id, "Would you like to order more drinks?", reply_markup=markup)
+        user_data[chat_id]["message_ids"].append(msg.message_id)
 
     except ValueError:
         msg = bot.send_message(chat_id, "Invalid input. Please enter a valid number.")
         user_data[chat_id]["message_ids"].append(msg.message_id)
         bot.register_next_step_handler(msg, handle_quantity_selection, selected_drink)
+
+@bot.callback_query_handler(func=lambda call: call.data in ["yes_more_drinks", "no_more_drinks"])
+def handle_more_drinks(call):
+    chat_id = call.message.chat.id
+    if call.data == "yes_more_drinks":
+        show_category_menu(call.message)
+    else:
+        finalize_order(call.message)
 
 def finalize_order(message):
     chat_id = message.chat.id
@@ -180,11 +186,15 @@ def finalize_order(message):
         queue_number += 1
         save_queue_number(queue_number)
 
-    order_summary = "\n".join(user_data[chat_id]["drink_orders"])
-    username = user_data[chat_id]["username"]
+    name = user_data[chat_id]["answers"][0]
+    telegram_handle = user_data[chat_id]["answers"][1]
+    drink_orders = "\n".join(user_data[chat_id]["drink_orders"])
+
     caption_text = (
-        f"Order Summary:\n{user_data[chat_id]['answers'][0]}\n"
-        f"{user_data[chat_id]['answers'][1]}\n{order_summary}\n"
+        f"Order Summary:\n"
+        f"{name}\n"
+        f"@{telegram_handle}\n"
+        f"{drink_orders}\n"
         f"Queue Number: #{order_queue_number}"
     )
 
@@ -194,11 +204,12 @@ def finalize_order(message):
     markup.add(types.InlineKeyboardButton("Mark as Ready", callback_data=f"order_ready_{chat_id}"))
 
     for admin_id in ADMIN_CHAT_IDS:
-        bot.send_message(admin_id, f"New Order from @{username}:\n{caption_text}", reply_markup=markup)
+        bot.send_message(admin_id, f"New Order:\n{caption_text}", reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("order_ready_"))
 def mark_order_as_ready(call):
     bot.answer_callback_query(call.id)
+
     user_chat_id = int(call.data.split("_")[-1])
     username = user_data[user_chat_id]["username"]
 
@@ -215,4 +226,4 @@ def reset_queue(message):
         save_queue_number(1)
         bot.send_message(message.chat.id, "Queue number has been reset to 1.")
 
-bot.polling(none_stop=True)
+bot.polling(none_stop=True, interval=0, timeout=20)
