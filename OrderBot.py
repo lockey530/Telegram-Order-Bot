@@ -7,7 +7,7 @@ from threading import Lock  # For thread safety
 bot = telebot.TeleBot(config.TOKEN)
 
 # List of admin chat IDs
-ADMIN_CHAT_IDS = [551429608, 881189472]  # Add more admin IDs as needed
+ADMIN_CHAT_IDS = [551429608, 881189472]
 
 # Updated menu structure
 menu = {
@@ -51,7 +51,7 @@ def welcome(message):
         "state": "START"
     }
 
-    msg = bot.send_message(chat_id, "Welcome to the Epoque Drinks Order Bot! Please note that these drinks will be prepared at the open bar. Please come to the open bar and collect it when the bot prompts you to do so!")
+    msg = bot.send_message(chat_id, "Welcome to the Epoque Drinks Order Bot! Drinks will be prepared at the open bar. Please collect them when notified!")
     user_data[chat_id]["message_ids"].append(msg.message_id)
 
     menu_msg = bot.send_photo(chat_id, MENU_IMAGE_FILE_ID)
@@ -137,7 +137,6 @@ def handle_mixer_selection(call):
         combined_order = f"{selected_drink} with {mixer}"
 
     user_data[chat_id]["answers"].append(combined_order)
-
     bot.edit_message_reply_markup(chat_id, call.message.message_id, reply_markup=None)
 
     ask_quantity(call.message, combined_order)
@@ -176,10 +175,13 @@ def handle_more_drinks(call):
     if call.data == "yes_more_drinks":
         show_category_menu(call.message)
     else:
-        finalize_order(call.message)
+        if user_data[chat_id]["state"] != "FINALIZED":
+            finalize_order(call.message)
 
 def finalize_order(message):
     chat_id = message.chat.id
+    user_data[chat_id]["state"] = "FINALIZED"
+
     with queue_lock:
         global queue_number
         order_queue_number = queue_number
