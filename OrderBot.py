@@ -212,18 +212,8 @@ def mark_order_as_ready(call):
         bot.send_message(user_chat_id, "Your order is ready for collection! Enjoy your drink!")
         bot.send_message(call.message.chat.id, f"The user @{username} has been informed.")
 
-        clear_user_messages(user_chat_id)
-        del user_data[user_chat_id]
-
     except Exception as e:
         bot.send_message(call.message.chat.id, f"Error processing the order: {str(e)}")
-
-def clear_user_messages(chat_id):
-    for msg_id in user_data[chat_id]["message_ids"]:
-        try:
-            bot.delete_message(chat_id, msg_id)
-        except:
-            pass
 
 @bot.message_handler(commands=['reset_queue'])
 def reset_queue(message):
