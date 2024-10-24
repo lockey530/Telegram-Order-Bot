@@ -4,8 +4,8 @@ from telebot import types
 from flask import Flask, request
 from threading import Lock
 
-# Initialize the bot with your token from environment variables
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+# New bot token
+TOKEN = "7859995354:AAHKDZChcNL4dDMU9As_hJBwjIN0uXAuuYM"
 bot = telebot.TeleBot(TOKEN)
 
 # List of admin chat IDs
@@ -19,14 +19,12 @@ mixers = ["Coca-Cola", "Coca-Cola Zero", "Sprite", "F&N Orange", "No Mixer"]
 user_data = {}
 QUEUE_FILE = "queue_counter.txt"
 queue_lock = Lock()
-
-# File ID for the menu image
 MENU_IMAGE_FILE_ID = 'AgACAgUAAxkBAAIMwGcYcU5hRcX49m1PlXZZZI_H4qmmAAJPvTEbMwPBVLBRAiCOhyJkAQADAgADeQADNgQ'
 
-# Flask app for webhook handling
+# Flask app to handle webhooks
 app = Flask(__name__)
 
-# Load the current queue number from file
+# Load queue number from the file
 def load_queue_number():
     if os.path.exists(QUEUE_FILE):
         with open(QUEUE_FILE, 'r') as file:
@@ -43,14 +41,16 @@ def save_queue_number(number):
 
 queue_number = load_queue_number()
 
+# Webhook route to handle incoming updates from Telegram
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
-    """Webhook endpoint to receive updates from Telegram."""
+    """Receive updates from Telegram."""
     json_str = request.get_data().decode('UTF-8')
     update = telebot.types.Update.de_json(json_str)
     bot.process_new_updates([update])
     return "OK", 200
 
+# Handle the /start command
 @bot.message_handler(commands=['start'])
 def welcome(message):
     chat_id = message.chat.id
@@ -68,6 +68,7 @@ def welcome(message):
 
     ask_question(message, 0)
 
+# Ask for user details
 def ask_question(message, question_index):
     chat_id = message.chat.id
     questions = ["Please enter your name:", "Please enter your Telegram handle:"]
@@ -85,6 +86,7 @@ def handle_answer(message, question_index):
     user_data[chat_id]["message_ids"].append(message.message_id)
     ask_question(message, question_index + 1)
 
+# Show the drink menu
 def show_drink_menu(message):
     chat_id = message.chat.id
     user_data[chat_id]["state"] = "CHOOSING_DRINK"
@@ -96,6 +98,7 @@ def show_drink_menu(message):
     msg = bot.send_message(chat_id, "Please select a drink:", reply_markup=markup)
     user_data[chat_id]["message_ids"].append(msg.message_id)
 
+# Handle drink selection
 @bot.callback_query_handler(func=lambda call: call.data in menu["Liquor"])
 def handle_drink_selection(call):
     chat_id = call.message.chat.id
@@ -106,6 +109,7 @@ def handle_drink_selection(call):
 
     ask_for_mixer(chat_id, selected_drink)
 
+# Ask for a mixer
 def ask_for_mixer(chat_id, selected_drink):
     user_data[chat_id]["state"] = "CHOOSING_MIXER"
     user_data[chat_id]["selected_drink"] = selected_drink
@@ -130,6 +134,7 @@ def handle_mixer_selection(call):
 
     ask_quantity(call.message, combined_order)
 
+# Ask for the quantity
 def ask_quantity(message, selected_drink):
     chat_id = message.chat.id
     msg = bot.send_message(chat_id, f"How many {selected_drink} would you like?")
@@ -166,6 +171,7 @@ def handle_more_drinks(call):
     else:
         finalize_order(call.message)
 
+# Finalize the order
 def finalize_order(message):
     chat_id = message.chat.id
 
