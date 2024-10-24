@@ -7,9 +7,9 @@ from threading import Lock  # For thread safety
 bot = telebot.TeleBot(config.TOKEN)
 
 # List of admin chat IDs
-ADMIN_CHAT_IDS = [551429608, 881189472]  # Add more admin IDs if needed
+ADMIN_CHAT_IDS = [551429608, 881189472]
 
-# Updated drink menu
+# Updated drink menu (only liquor)
 menu = {
     "Liquor": ["Tiger Beer", "Vodka", "Whiskey", "Rum", "Gin"]
 }
@@ -59,7 +59,24 @@ def welcome(message):
     menu_msg = bot.send_photo(chat_id, MENU_IMAGE_FILE_ID)
     user_data[chat_id]["message_ids"].append(menu_msg.message_id)
 
-    show_drink_menu(message)
+    ask_question(message, 0)
+
+def ask_question(message, question_index):
+    chat_id = message.chat.id
+    questions = ["Please enter your name:", "Please enter your Telegram handle:"]
+
+    if question_index < len(questions):
+        msg = bot.send_message(chat_id, questions[question_index])
+        user_data[chat_id]["message_ids"].append(msg.message_id)
+        bot.register_next_step_handler(msg, handle_answer, question_index)
+    else:
+        show_drink_menu(message)
+
+def handle_answer(message, question_index):
+    chat_id = message.chat.id
+    user_data[chat_id]["answers"].append(message.text)
+    user_data[chat_id]["message_ids"].append(message.message_id)
+    ask_question(message, question_index + 1)
 
 def show_drink_menu(message):
     chat_id = message.chat.id
