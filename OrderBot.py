@@ -198,10 +198,16 @@ def finalize_order(message):
 @bot.callback_query_handler(func=lambda call: call.data.startswith("order_ready_"))
 def mark_order_as_ready(call):
     bot.answer_callback_query(call.id)
+
     user_chat_id = int(call.data.split("_")[-1])
     username = user_data[user_chat_id]["username"]
 
+    markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton("✅ Ready", callback_data="none"))
+
+    bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=markup)
     bot.send_message(user_chat_id, "Your order is ready for collection! Enjoy your drink!")
+    bot.send_message(call.message.chat.id, f"The user @{username} has been informed.")
 
 @bot.message_handler(commands=['reset_queue'])
 def reset_queue(message):
