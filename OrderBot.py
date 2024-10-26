@@ -13,7 +13,7 @@ ADMIN_CHAT_IDS = [551429608, 881189472]
 
 # Menu and mixers
 menu = {"Liquor": ["Tiger Beer", "Vodka", "Whiskey", "Rum", "Gin"]}
-mixers = ["Coca-Cola", "Coca-Cola Zero", "Sprite", "F&N Orange", "No Mixer"]
+mixers = ["Coca-Cola", "Coca-Cola Zero", "Sprite", "F&N Orange", "Tonic Water", "No Mixer"]
 
 # User data and queue handling
 user_data = {}
