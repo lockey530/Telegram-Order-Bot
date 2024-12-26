@@ -225,8 +225,10 @@ def process_final_order(chat_id):
         f"Order Summary:\n{name}\n@{telegram_handle}\n{drink_orders}\nQueue Number: #{order_queue_number}"
     )
 
-    bot.send_message(chat_id, "Your order has been processed. Thank you!")
+    # Send order summary to customer
+    bot.send_message(chat_id, caption_text)
 
+    # Send order summary to admins
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("Mark as Ready", callback_data=f"order_ready_{chat_id}"))
 
