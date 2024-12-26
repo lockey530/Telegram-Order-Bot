@@ -60,7 +60,7 @@ def welcome(message):
         "state": "START", "order_finalized": False
     }
 
-    msg = bot.send_message(chat_id, "Welcome to CMC Baristas Drinks Order Bot! Drinks will be prepared at the counter. Please collect them when notified!")
+    msg = bot.send_message(chat_id, "Welcome to CMC Baristas Drinks Order Bot! Drinks will be prepared at the counter. Please collect them when notified")
     user_data[chat_id]["message_ids"].append(msg.message_id)
 
     menu_msg = bot.send_photo(chat_id, MENU_IMAGE_FILE_ID)
@@ -167,29 +167,40 @@ def finalize_drink_order(chat_id, drink, temperature, milk):
     if order not in user_data[chat_id]["drink_orders"]:
         user_data[chat_id]["drink_orders"].append(order)
 
-    markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton("Yes", callback_data="yes_more_drinks"))
-    markup.add(types.InlineKeyboardButton("No", callback_data="no_more_drinks"))
+    request_payment(chat_id)
 
-    msg = bot.send_message(chat_id, f"You have selected: {order}. Would you like to order more drinks?", reply_markup=markup)
+# Request payment
+def request_payment(chat_id):
+    total_amount = len(user_data[chat_id]["drink_orders"]) * 4  # Each drink is $4
+    user_data[chat_id]["state"] = "AWAITING_PAYMENT"
+
+    msg = bot.send_message(
+        chat_id,
+        f"Your total is ${total_amount}. Please PayNow to +6592331010.\n\n"
+        "Once the transaction is complete, upload a screenshot of the payment confirmation here."
+    )
     user_data[chat_id]["message_ids"].append(msg.message_id)
+    bot.register_next_step_handler(msg, handle_payment_confirmation)
 
-@bot.callback_query_handler(func=lambda call: call.data in ["yes_more_drinks", "no_more_drinks"])
-def handle_more_drinks(call):
-    chat_id = call.message.chat.id
-    if call.data == "yes_more_drinks":
-        show_drink_menu(call.message)
-    else:
-        finalize_order(call.message)
-
-# Finalize the order
-def finalize_order(message):
+# Handle payment confirmation
+def handle_payment_confirmation(message):
     chat_id = message.chat.id
 
-    # Check if the order is already finalized
-    if user_data[chat_id].get("order_finalized"):
-        return
+    if message.content_type == 'photo' and user_data[chat_id]["state"] == "AWAITING_PAYMENT":
+        user_data[chat_id]["state"] = "PAYMENT_CONFIRMED"
 
+        # Save the payment confirmation
+        user_data[chat_id]["payment_confirmation"] = message.photo[-1].file_id
+
+        bot.send_message(chat_id, "Payment confirmed! Your order is being processed.")
+
+        # Finalize the order after payment confirmation
+        process_final_order(chat_id)
+    else:
+        bot.send_message(chat_id, "Please upload a valid payment confirmation screenshot.")
+
+# Process final order after payment confirmation
+def process_final_order(chat_id):
     with queue_lock:
         global queue_number
         order_queue_number = queue_number
@@ -199,19 +210,20 @@ def finalize_order(message):
     name = user_data[chat_id]["answers"][0]
     telegram_handle = user_data[chat_id]["answers"][1]
     drink_orders = "\n".join(user_data[chat_id]["drink_orders"])
+    payment_confirmation_id = user_data[chat_id].get("payment_confirmation", "No confirmation uploaded")
 
-    caption_text = f"Order Summary:\n{name}\n@{telegram_handle}\n{drink_orders}\nQueue Number: #{order_queue_number}"
+    caption_text = (
+        f"Order Summary:\n{name}\n@{telegram_handle}\n{drink_orders}\nQueue Number: #{order_queue_number}\n"
+        f"Payment Confirmation: {payment_confirmation_id}"
+    )
 
-    bot.send_message(chat_id, caption_text)
+    bot.send_message(chat_id, "Your order has been processed. Thank you!")
 
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("Mark as Ready", callback_data=f"order_ready_{chat_id}"))
 
     for admin_id in ADMIN_CHAT_IDS:
         bot.send_message(admin_id, f"New Order:\n{caption_text}", reply_markup=markup)
-
-    # Mark the order as finalized
-    user_data[chat_id]["order_finalized"] = True
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("order_ready_"))
 def mark_order_as_ready(call):
