@@ -167,7 +167,20 @@ def finalize_drink_order(chat_id, drink, temperature, milk):
     if order not in user_data[chat_id]["drink_orders"]:
         user_data[chat_id]["drink_orders"].append(order)
 
-    request_payment(chat_id)
+    markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton("Yes", callback_data="yes_more_drinks"))
+    markup.add(types.InlineKeyboardButton("No", callback_data="no_more_drinks"))
+
+    msg = bot.send_message(chat_id, f"You have selected: {order}. Would you like to order more drinks?", reply_markup=markup)
+    user_data[chat_id]["message_ids"].append(msg.message_id)
+
+@bot.callback_query_handler(func=lambda call: call.data in ["yes_more_drinks", "no_more_drinks"])
+def handle_more_drinks(call):
+    chat_id = call.message.chat.id
+    if call.data == "yes_more_drinks":
+        show_drink_menu(call.message)
+    else:
+        request_payment(chat_id)
 
 # Request payment
 def request_payment(chat_id):
@@ -189,12 +202,9 @@ def handle_payment_confirmation(message):
     if message.content_type == 'photo' and user_data[chat_id]["state"] == "AWAITING_PAYMENT":
         user_data[chat_id]["state"] = "PAYMENT_CONFIRMED"
 
-        # Save the payment confirmation
-        user_data[chat_id]["payment_confirmation"] = message.photo[-1].file_id
-
         bot.send_message(chat_id, "Payment confirmed! Your order is being processed.")
 
-        # Finalize the order after payment confirmation
+        # Process the final order after payment confirmation
         process_final_order(chat_id)
     else:
         bot.send_message(chat_id, "Please upload a valid payment confirmation screenshot.")
@@ -210,11 +220,9 @@ def process_final_order(chat_id):
     name = user_data[chat_id]["answers"][0]
     telegram_handle = user_data[chat_id]["answers"][1]
     drink_orders = "\n".join(user_data[chat_id]["drink_orders"])
-    payment_confirmation_id = user_data[chat_id].get("payment_confirmation", "No confirmation uploaded")
 
     caption_text = (
-        f"Order Summary:\n{name}\n@{telegram_handle}\n{drink_orders}\nQueue Number: #{order_queue_number}\n"
-        f"Payment Confirmation: {payment_confirmation_id}"
+        f"Order Summary:\n{name}\n@{telegram_handle}\n{drink_orders}\nQueue Number: #{order_queue_number}"
     )
 
     bot.send_message(chat_id, "Your order has been processed. Thank you!")
