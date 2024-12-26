@@ -57,7 +57,7 @@ def welcome(message):
     user_data[chat_id] = {
         "answers": [], "drink_orders": [], 
         "message_ids": [], "username": message.from_user.username, 
-        "state": "START"
+        "state": "START", "order_finalized": False
     }
 
     msg = bot.send_message(chat_id, "Welcome to the Epoque Drinks Order Bot! Drinks will be prepared at the open bar. Please collect them when notified!")
@@ -163,7 +163,9 @@ def finalize_drink_order(chat_id, drink, temperature, milk):
     if milk:
         order += f" with {milk} milk"
 
-    user_data[chat_id]["drink_orders"].append(order)
+    # Avoid duplicate orders
+    if order not in user_data[chat_id]["drink_orders"]:
+        user_data[chat_id]["drink_orders"].append(order)
 
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("Yes", callback_data="yes_more_drinks"))
@@ -184,6 +186,10 @@ def handle_more_drinks(call):
 def finalize_order(message):
     chat_id = message.chat.id
 
+    # Check if the order is already finalized
+    if user_data[chat_id].get("order_finalized"):
+        return
+
     with queue_lock:
         global queue_number
         order_queue_number = queue_number
@@ -203,6 +209,9 @@ def finalize_order(message):
 
     for admin_id in ADMIN_CHAT_IDS:
         bot.send_message(admin_id, f"New Order:\n{caption_text}", reply_markup=markup)
+
+    # Mark the order as finalized
+    user_data[chat_id]["order_finalized"] = True
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("order_ready_"))
 def mark_order_as_ready(call):
