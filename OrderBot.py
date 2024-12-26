@@ -60,7 +60,7 @@ def welcome(message):
         "state": "START", "order_finalized": False
     }
 
-    msg = bot.send_message(chat_id, "Welcome to the Epoque Drinks Order Bot! Drinks will be prepared at the open bar. Please collect them when notified!")
+    msg = bot.send_message(chat_id, "Welcome to CMC Baristas Drinks Order Bot! Drinks will be prepared at the counter. Please collect them when notified!")
     user_data[chat_id]["message_ids"].append(msg.message_id)
 
     menu_msg = bot.send_photo(chat_id, MENU_IMAGE_FILE_ID)
