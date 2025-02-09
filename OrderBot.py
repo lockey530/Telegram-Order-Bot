@@ -161,6 +161,7 @@ def handle_payment_confirmation(message):
 
     if message.content_type == 'photo' and user_data[chat_id]["state"] == "AWAITING_PAYMENT":
         user_data[chat_id]["state"] = "PAYMENT_CONFIRMED"
+        user_data[chat_id]["payment_photo_id"] = message.photo[-1].file_id
 
         bot.send_message(chat_id, "Payment confirmed! Your order is being processed.")
         process_final_order(chat_id)
@@ -183,12 +184,10 @@ def process_final_order(chat_id):
         f"Order Summary:\n{name}\n@{telegram_handle}\n{orders}\nQueue Number: #{order_queue_number}"
     )
 
-    bot.send_message(chat_id, caption_text)
-
     for admin_id in ADMIN_CHAT_IDS:
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("Mark as Ready", callback_data=f"order_ready_{chat_id}"))
-        bot.send_message(admin_id, f"New Order:\n{caption_text}", reply_markup=markup)
+        bot.send_photo(admin_id, user_data[chat_id]["payment_photo_id"], caption=caption_text, reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("order_ready_"))
 def mark_order_as_ready(call):
