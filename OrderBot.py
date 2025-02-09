@@ -14,7 +14,7 @@ ADMIN_CHAT_IDS = [551429608, 881189472]
 # Updated Menu
 menu = {"Drinks": ["Strawberry-ade", "Strawberry Matcha", "Iced Matcha Latte", "Iced Chocolate"]}
 pricing = {"Strawberry-ade": 3, "Strawberry Matcha": 4.5, "Iced Matcha Latte": 4, "Iced Chocolate": 4}
-macarons_pricing = {"Macarons - 3 for $7": 7, "Macarons - 6 for $12": 12}
+macarons_pricing = {"3 for $7": 7, "6 for $12": 12}
 
 # User data and queue handling
 user_data = {}
@@ -144,12 +144,12 @@ def handle_more_items(call):
 
 # Request payment
 def request_payment(chat_id):
-    total_amount = sum(pricing.get(item.split(" ($")[0], 0) for item in user_data[chat_id]["drink_orders"])
+    total_amount = sum(float(order.split(" ($")[1].rstrip(")")) for order in user_data[chat_id]["drink_orders"])
     user_data[chat_id]["state"] = "AWAITING_PAYMENT"
 
     msg = bot.send_message(
         chat_id,
-        f"Your total is ${total_amount}. Please PayNow to +6592331010.\n\n"
+        f"Your total is ${total_amount:.2f}. Please PayNow to +6592331010.\n\n"
         "Once the transaction is complete, upload a screenshot of the payment confirmation here."
     )
     user_data[chat_id]["message_ids"].append(msg.message_id)
