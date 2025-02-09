@@ -149,8 +149,8 @@ def request_payment(chat_id):
 
     msg = bot.send_message(
         chat_id,
-        f"Your total is ${total_amount:.2f}. Please PayNow to +6592331010.\n\n"
-        "Once the transaction is complete, upload a screenshot of the payment confirmation here."
+        f"Your total is ${total_amount:.2f}. Please PayNow to +6598213166.\n\n"
+        "Once the transaction is complete, PLEASE RETURN HERE and upload a screenshot of the payment confirmation here."
     )
     user_data[chat_id]["message_ids"].append(msg.message_id)
     bot.register_next_step_handler(msg, handle_payment_confirmation)
