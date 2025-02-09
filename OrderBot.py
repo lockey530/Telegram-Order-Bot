@@ -22,12 +22,6 @@ QUEUE_FILE = "queue_counter.txt"
 queue_lock = Lock()
 MENU_IMAGE_FILE_ID = 'AgACAgUAAxkBAAIcmGeo14cqE7OgKCww1gudTn4UJYrgAAI91DEbPplJVYe07NscXNsZAQADAgADeQADNgQ'
 
-@bot.message_handler(content_types=['photo'])
-def handle_photo(message):
-    # Get the file_id of the largest photo (highest resolution)
-    file_id = message.photo[-1].file_id
-    bot.reply_to(message, f"File ID: {file_id}")
-
 # Flask app to handle webhooks
 app = Flask(__name__)
 
