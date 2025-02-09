@@ -20,7 +20,7 @@ macarons_pricing = {"Macarons - 3 for $7": 7, "Macarons - 6 for $12": 12}
 user_data = {}
 QUEUE_FILE = "queue_counter.txt"
 queue_lock = Lock()
-MENU_IMAGE_FILE_ID = 'AgACAgUAAxkBAAIMwGcYcU5hRcX49m1PlXZZZI_H4qmmAAJPvTEbMwPBVLBRAiCOhyJkAQADAgADeQADNgQ'
+MENU_IMAGE_FILE_ID = 'AgACAgUAAxkBAAIcmGeo14cqE7OgKCww1gudTn4UJYrgAAI91DEbPplJVYe07NscXNsZAQADAgADeQADNgQ'
 
 @bot.message_handler(content_types=['photo'])
 def handle_photo(message):
