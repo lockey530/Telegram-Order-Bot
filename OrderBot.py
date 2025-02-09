@@ -11,9 +11,10 @@ bot = telebot.TeleBot(TOKEN)
 # List of admin chat IDs
 ADMIN_CHAT_IDS = [551429608, 881189472]
 
-# Menu
-menu = {"Drinks": ["White Coffee", "Black Coffee", "Mocha", "Chocolate"]}
-options = {"Temperature": ["Hot", "Iced"], "Milk": ["Cow", "Oat"]}
+# Updated Menu
+menu = {"Drinks": ["Strawberry-ade", "Strawberry Matcha", "Iced Matcha Latte", "Iced Chocolate"]}
+pricing = {"Strawberry-ade": 3, "Strawberry Matcha": 4.5, "Iced Matcha Latte": 4, "Iced Chocolate": 4}
+macarons_pricing = {"3 for $7": 7, "6 for $12": 12}
 
 # User data and queue handling
 user_data = {}
@@ -60,7 +61,7 @@ def welcome(message):
         "state": "START", "order_finalized": False
     }
 
-    msg = bot.send_message(chat_id, "Welcome to CMC Baristas Drinks Order Bot! Drinks will be prepared at the counter. Please collect them when notified")
+    msg = bot.send_message(chat_id, "Welcome to Battam Bar Valentine's Specials! Drinks and macarons will be prepared at the counter. Please collect them when notified.")
     user_data[chat_id]["message_ids"].append(msg.message_id)
 
     menu_msg = bot.send_photo(chat_id, MENU_IMAGE_FILE_ID)
@@ -78,7 +79,7 @@ def ask_question(message, question_index):
         user_data[chat_id]["message_ids"].append(msg.message_id)
         bot.register_next_step_handler(msg, handle_answer, question_index)
     else:
-        show_drink_menu(message)
+        show_menu(message)
 
 def handle_answer(message, question_index):
     chat_id = message.chat.id
@@ -86,105 +87,64 @@ def handle_answer(message, question_index):
     user_data[chat_id]["message_ids"].append(message.message_id)
     ask_question(message, question_index + 1)
 
-# Show the drink menu
-def show_drink_menu(message):
+# Show the updated menu
+def show_menu(message):
     chat_id = message.chat.id
-    user_data[chat_id]["state"] = "CHOOSING_DRINK"
+    user_data[chat_id]["state"] = "CHOOSING_ITEM"
 
     markup = types.InlineKeyboardMarkup()
     for drink in menu["Drinks"]:
-        markup.add(types.InlineKeyboardButton(drink, callback_data=drink))
+        markup.add(types.InlineKeyboardButton(drink, callback_data=f"drink_{drink}"))
+    
+    for option, price in macarons_pricing.items():
+        markup.add(types.InlineKeyboardButton(option, callback_data=f"macarons_{option}"))
 
-    msg = bot.send_message(chat_id, "Please select a drink:", reply_markup=markup)
+    msg = bot.send_message(chat_id, "Please select an item:", reply_markup=markup)
     user_data[chat_id]["message_ids"].append(msg.message_id)
 
-# Handle drink selection
-@bot.callback_query_handler(func=lambda call: call.data in menu["Drinks"])
+@bot.callback_query_handler(func=lambda call: call.data.startswith("drink_"))
 def handle_drink_selection(call):
     chat_id = call.message.chat.id
-    selected_drink = call.data
+    selected_drink = call.data.split("_")[1]
     user_data[chat_id]["selected_drink"] = selected_drink
 
     bot.edit_message_reply_markup(chat_id, call.message.message_id, reply_markup=None)
+    finalize_order(chat_id, selected_drink, pricing[selected_drink])
 
-    ask_temperature(chat_id, selected_drink)
-
-# Ask for temperature
-def ask_temperature(chat_id, selected_drink):
-    user_data[chat_id]["state"] = "CHOOSING_TEMPERATURE"
-
-    markup = types.InlineKeyboardMarkup()
-    for temp in options["Temperature"]:
-        markup.add(types.InlineKeyboardButton(temp, callback_data=f"temp_{temp}"))
-
-    msg = bot.send_message(chat_id, f"Would you like your {selected_drink} hot or iced?", reply_markup=markup)
-    user_data[chat_id]["message_ids"].append(msg.message_id)
-
-@bot.callback_query_handler(func=lambda call: call.data.startswith("temp_"))
-def handle_temperature_selection(call):
+@bot.callback_query_handler(func=lambda call: call.data.startswith("macarons_"))
+def handle_macarons_selection(call):
     chat_id = call.message.chat.id
-    temperature = call.data.split("_")[1]
-    user_data[chat_id]["temperature"] = temperature
+    selected_option = call.data.split("_")[1]
+    user_data[chat_id]["selected_item"] = selected_option
 
     bot.edit_message_reply_markup(chat_id, call.message.message_id, reply_markup=None)
+    finalize_order(chat_id, selected_option, macarons_pricing[selected_option])
 
-    selected_drink = user_data[chat_id]["selected_drink"]
-    if selected_drink == "White Coffee":
-        ask_milk(chat_id, selected_drink)
-    else:
-        finalize_drink_order(chat_id, selected_drink, temperature, None)
+# Finalize the order
+def finalize_order(chat_id, item, price):
+    order = f"{item} (${price})"
 
-# Ask for milk type (only for White Coffee)
-def ask_milk(chat_id, selected_drink):
-    user_data[chat_id]["state"] = "CHOOSING_MILK"
-
-    markup = types.InlineKeyboardMarkup()
-    for milk in options["Milk"]:
-        markup.add(types.InlineKeyboardButton(milk, callback_data=f"milk_{milk}"))
-
-    msg = bot.send_message(chat_id, f"Which milk would you like for your {selected_drink}?", reply_markup=markup)
-    user_data[chat_id]["message_ids"].append(msg.message_id)
-
-@bot.callback_query_handler(func=lambda call: call.data.startswith("milk_"))
-def handle_milk_selection(call):
-    chat_id = call.message.chat.id
-    milk = call.data.split("_")[1]
-    user_data[chat_id]["milk"] = milk
-
-    bot.edit_message_reply_markup(chat_id, call.message.message_id, reply_markup=None)
-
-    selected_drink = user_data[chat_id]["selected_drink"]
-    temperature = user_data[chat_id]["temperature"]
-    finalize_drink_order(chat_id, selected_drink, temperature, milk)
-
-# Finalize drink order
-def finalize_drink_order(chat_id, drink, temperature, milk):
-    order = f"{temperature} {drink}"
-    if milk:
-        order += f" with {milk} milk"
-
-    # Avoid duplicate orders
     if order not in user_data[chat_id]["drink_orders"]:
         user_data[chat_id]["drink_orders"].append(order)
 
     markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton("Yes", callback_data="yes_more_drinks"))
-    markup.add(types.InlineKeyboardButton("No", callback_data="no_more_drinks"))
+    markup.add(types.InlineKeyboardButton("Yes", callback_data="yes_more_items"))
+    markup.add(types.InlineKeyboardButton("No", callback_data="no_more_items"))
 
-    msg = bot.send_message(chat_id, f"You have selected: {order}. Would you like to order more drinks?", reply_markup=markup)
+    msg = bot.send_message(chat_id, f"You have selected: {order}. Would you like to order more items?", reply_markup=markup)
     user_data[chat_id]["message_ids"].append(msg.message_id)
 
-@bot.callback_query_handler(func=lambda call: call.data in ["yes_more_drinks", "no_more_drinks"])
-def handle_more_drinks(call):
+@bot.callback_query_handler(func=lambda call: call.data in ["yes_more_items", "no_more_items"])
+def handle_more_items(call):
     chat_id = call.message.chat.id
-    if call.data == "yes_more_drinks":
-        show_drink_menu(call.message)
+    if call.data == "yes_more_items":
+        show_menu(call.message)
     else:
         request_payment(chat_id)
 
 # Request payment
 def request_payment(chat_id):
-    total_amount = len(user_data[chat_id]["drink_orders"]) * 4  # Each drink is $4
+    total_amount = sum(pricing.get(item.split(" ($")[0], 0) for item in user_data[chat_id]["drink_orders"])
     user_data[chat_id]["state"] = "AWAITING_PAYMENT"
 
     msg = bot.send_message(
@@ -203,8 +163,6 @@ def handle_payment_confirmation(message):
         user_data[chat_id]["state"] = "PAYMENT_CONFIRMED"
 
         bot.send_message(chat_id, "Payment confirmed! Your order is being processed.")
-
-        # Process the final order after payment confirmation
         process_final_order(chat_id)
     else:
         bot.send_message(chat_id, "Please upload a valid payment confirmation screenshot.")
@@ -219,20 +177,17 @@ def process_final_order(chat_id):
 
     name = user_data[chat_id]["answers"][0]
     telegram_handle = user_data[chat_id]["answers"][1]
-    drink_orders = "\n".join(user_data[chat_id]["drink_orders"])
+    orders = "\n".join(user_data[chat_id]["drink_orders"])
 
     caption_text = (
-        f"Order Summary:\n{name}\n@{telegram_handle}\n{drink_orders}\nQueue Number: #{order_queue_number}"
+        f"Order Summary:\n{name}\n@{telegram_handle}\n{orders}\nQueue Number: #{order_queue_number}"
     )
 
-    # Send order summary to customer
     bot.send_message(chat_id, caption_text)
 
-    # Send order summary to admins
-    markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton("Mark as Ready", callback_data=f"order_ready_{chat_id}"))
-
     for admin_id in ADMIN_CHAT_IDS:
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("Mark as Ready", callback_data=f"order_ready_{chat_id}"))
         bot.send_message(admin_id, f"New Order:\n{caption_text}", reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("order_ready_"))
