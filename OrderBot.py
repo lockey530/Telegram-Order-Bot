@@ -14,13 +14,19 @@ ADMIN_CHAT_IDS = [551429608, 881189472]
 # Updated Menu
 menu = {"Drinks": ["Strawberry-ade", "Strawberry Matcha", "Iced Matcha Latte", "Iced Chocolate"]}
 pricing = {"Strawberry-ade": 3, "Strawberry Matcha": 4.5, "Iced Matcha Latte": 4, "Iced Chocolate": 4}
-macarons_pricing = {"3 for $7": 7, "6 for $12": 12}
+macarons_pricing = {"Macarons - 3 for $7": 7, "Macarons - 6 for $12": 12}
 
 # User data and queue handling
 user_data = {}
 QUEUE_FILE = "queue_counter.txt"
 queue_lock = Lock()
 MENU_IMAGE_FILE_ID = 'AgACAgUAAxkBAAIMwGcYcU5hRcX49m1PlXZZZI_H4qmmAAJPvTEbMwPBVLBRAiCOhyJkAQADAgADeQADNgQ'
+
+@bot.message_handler(content_types=['photo'])
+def handle_photo(message):
+    # Get the file_id of the largest photo (highest resolution)
+    file_id = message.photo[-1].file_id
+    bot.reply_to(message, f"File ID: {file_id}")
 
 # Flask app to handle webhooks
 app = Flask(__name__)
