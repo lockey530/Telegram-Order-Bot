@@ -14,7 +14,7 @@ ADMIN_CHAT_IDS = [551429608, 881189472]
 # Updated Menu
 menu = {"Drinks": ["Strawberry-ade", "Strawberry Matcha", "Iced Matcha Latte", "Iced Chocolate"]}
 pricing = {"Strawberry-ade": 3, "Strawberry Matcha": 4.5, "Iced Matcha Latte": 4, "Iced Chocolate": 4}
-macarons_pricing = {"3 for $7": 7, "6 for $12": 12}
+macarons_pricing = {"Macarons - 3 for $7": 7, "Macarons - 6 for $12": 12}
 
 # User data and queue handling
 user_data = {}
