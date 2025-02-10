@@ -9,7 +9,7 @@ TOKEN = "7859995354:AAHKDZChcNL4dDMU9As_hJBwjIN0uXAuuYM"
 bot = telebot.TeleBot(TOKEN)
 
 # List of admin chat IDs
-ADMIN_CHAT_IDS = [551429608, 881189472]
+ADMIN_CHAT_IDS = [551429608, 881189472, 2124576240]
 
 # Updated Menu
 menu = {"Drinks": ["Strawberry-ade", "Strawberry Matcha", "Iced Matcha Latte", "Iced Chocolate"]}
