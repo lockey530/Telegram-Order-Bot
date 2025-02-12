@@ -64,8 +64,6 @@ user_data[chat_id] = {
     "order_finalized": False
 }
 
-    }
-
     msg = bot.send_message(chat_id, "Welcome to Battam Bar Valentine's Specials! Drinks and macarons will be prepared at the counter. Please collect them when notified.")
     user_data[chat_id]["message_ids"].append(msg.message_id)
 
