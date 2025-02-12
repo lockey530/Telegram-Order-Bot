@@ -51,25 +51,20 @@ def webhook():
     bot.process_new_updates([update])
     return "OK", 200
 
-# Handle the /start command
 @bot.message_handler(commands=['start'])
 def welcome(message):
     chat_id = message.chat.id
-user_data[chat_id] = {
-    "answers": [], 
-    "drink_orders": {},  # Change from list to dictionary
-    "message_ids": [], 
-    "username": message.from_user.username, 
-    "state": "START", 
-    "order_finalized": False
-}
+    user_data[chat_id] = {
+        "answers": [],
+        "drink_orders": {},  # Dictionary for drink orders with quantities
+        "message_ids": [],
+        "username": message.from_user.username,
+        "state": "START",
+        "order_finalized": False
+    }
 
-    msg = bot.send_message(chat_id, "Welcome to Battam Bar Valentine's Specials! Drinks and macarons will be prepared at the counter. Please collect them when notified.")
-    user_data[chat_id]["message_ids"].append(msg.message_id)
-
-    menu_msg = bot.send_photo(chat_id, MENU_IMAGE_FILE_ID)
-    user_data[chat_id]["message_ids"].append(menu_msg.message_id)
-
+    bot.send_message(chat_id, "Welcome to Battam Bar Valentine's Specials! Drinks and macarons will be prepared at the counter. Please collect them when notified.")
+    bot.send_photo(chat_id, MENU_IMAGE_FILE_ID)
     ask_question(message, 0)
 
 # Ask for user details
