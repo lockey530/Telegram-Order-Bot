@@ -55,10 +55,15 @@ def webhook():
 @bot.message_handler(commands=['start'])
 def welcome(message):
     chat_id = message.chat.id
-    user_data[chat_id] = {
-        "answers": [], "drink_orders": [], 
-        "message_ids": [], "username": message.from_user.username, 
-        "state": "START", "order_finalized": False
+user_data[chat_id] = {
+    "answers": [], 
+    "drink_orders": {},  # Change from list to dictionary
+    "message_ids": [], 
+    "username": message.from_user.username, 
+    "state": "START", 
+    "order_finalized": False
+}
+
     }
 
     msg = bot.send_message(chat_id, "Welcome to Battam Bar Valentine's Specials! Drinks and macarons will be prepared at the counter. Please collect them when notified.")
@@ -122,17 +127,18 @@ def handle_macarons_selection(call):
 
 # Finalize the order
 def finalize_order(chat_id, item, price):
-    order = f"{item} (${price})"
-
-    if order not in user_data[chat_id]["drink_orders"]:
-        user_data[chat_id]["drink_orders"].append(order)
+    if item in user_data[chat_id]["drink_orders"]:
+        user_data[chat_id]["drink_orders"][item]["quantity"] += 1
+    else:
+        user_data[chat_id]["drink_orders"][item] = {"price": price, "quantity": 1}
 
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("Yes", callback_data="yes_more_items"))
     markup.add(types.InlineKeyboardButton("No", callback_data="no_more_items"))
 
-    msg = bot.send_message(chat_id, f"You have selected: {order}. Would you like to order more items?", reply_markup=markup)
+    msg = bot.send_message(chat_id, f"You have selected: {item} (${price}). Would you like to order more items?", reply_markup=markup)
     user_data[chat_id]["message_ids"].append(msg.message_id)
+
 
 @bot.callback_query_handler(func=lambda call: call.data in ["yes_more_items", "no_more_items"])
 def handle_more_items(call):
@@ -144,13 +150,17 @@ def handle_more_items(call):
 
 # Request payment
 def request_payment(chat_id):
-    total_amount = sum(float(order.split(" ($")[1].rstrip(")")) for order in user_data[chat_id]["drink_orders"])
+    total_amount = sum(item["price"] * item["quantity"] for item in user_data[chat_id]["drink_orders"].values())
+
     user_data[chat_id]["state"] = "AWAITING_PAYMENT"
+    order_summary = "\n".join([f"{item} x{details['quantity']} - ${details['price'] * details['quantity']}" 
+                               for item, details in user_data[chat_id]["drink_orders"].items()])
 
     msg = bot.send_message(
         chat_id,
-        f"Your total is ${total_amount:.2f}. Please PayNow to 87548727.\n\n"
-        "Once the transaction is complete, PLEASE RETURN HERE and upload a screenshot of the payment confirmation here."
+        f"Your order:\n{order_summary}\n\nTotal: ${total_amount:.2f}.\n"
+        "Please PayNow to 87548727.\n"
+        "Once the transaction is complete, PLEASE RETURN HERE and upload a screenshot of the payment confirmation."
     )
     user_data[chat_id]["message_ids"].append(msg.message_id)
     bot.register_next_step_handler(msg, handle_payment_confirmation)
@@ -178,7 +188,9 @@ def process_final_order(chat_id):
 
     name = user_data[chat_id]["answers"][0]
     telegram_handle = user_data[chat_id]["answers"][1]
-    orders = "\n".join(user_data[chat_id]["drink_orders"])
+    
+    orders = "\n".join([f"{item} x{details['quantity']} - ${details['price'] * details['quantity']}" 
+                        for item, details in user_data[chat_id]["drink_orders"].items()])
 
     caption_text = (
         f"Order Summary:\n{name}\n@{telegram_handle}\n{orders}\nQueue Number: #{order_queue_number}"
@@ -188,6 +200,7 @@ def process_final_order(chat_id):
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("Mark as Ready", callback_data=f"order_ready_{chat_id}"))
         bot.send_photo(admin_id, user_data[chat_id]["payment_photo_id"], caption=caption_text, reply_markup=markup)
+
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("order_ready_"))
 def mark_order_as_ready(call):
