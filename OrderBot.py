@@ -9,7 +9,7 @@ TOKEN = "7859995354:AAHKDZChcNL4dDMU9As_hJBwjIN0uXAuuYM"
 bot = telebot.TeleBot(TOKEN)
 
 # List of admin chat IDs
-ADMIN_CHAT_IDS = [551429608, 881189472, 2124576240]
+ADMIN_CHAT_IDS = [551429608, 881189472, 2124576240, 1308077608]
 
 # Updated Menu
 menu = {"Drinks": ["Strawberry-ade", "Strawberry Matcha", "Iced Matcha Latte", "Iced Chocolate"]}
@@ -149,7 +149,7 @@ def request_payment(chat_id):
 
     msg = bot.send_message(
         chat_id,
-        f"Your total is ${total_amount:.2f}. Please PayNow to +6598213166.\n\n"
+        f"Your total is ${total_amount:.2f}. Please PayNow to 87548727.\n\n"
         "Once the transaction is complete, PLEASE RETURN HERE and upload a screenshot of the payment confirmation here."
     )
     user_data[chat_id]["message_ids"].append(msg.message_id)
